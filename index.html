@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="mobile-web-app-capable" content="yes"/>
 <title>Wings of Fire — My Dragon Life</title>
 <style>
 * { box-sizing:border-box; }
@@ -2179,7 +2182,7 @@ function addPhaseButton(phase){
   btn.className='btn btn-gold';
   btn.id=phase==='adult'?'job-btn':'grow-btn';
   btn.textContent=label;
-  btn.style.cssText='position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:35;pointer-events:auto';
+  btn.style.cssText='position:fixed;bottom:175px;left:50%;transform:translateX(-50%);z-index:35;pointer-events:auto';
   btn.onclick=()=>{
     btn.remove();
     if(phase==='hatchling') startWorldPhase('dragonet');
@@ -2211,7 +2214,7 @@ function addPhaseButton_jma2(){
   const btn=document.createElement('button');
   btn.className='btn btn-gold'; btn.id='grow-btn';
   btn.textContent='Graduate from JMA →';
-  btn.style.cssText='position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:35;pointer-events:auto';
+  btn.style.cssText='position:fixed;bottom:175px;left:50%;transform:translateX(-50%);z-index:35;pointer-events:auto';
   btn.onclick=()=>{ btn.remove(); startWorldPhase('adult'); };
   document.body.appendChild(btn);
 }
