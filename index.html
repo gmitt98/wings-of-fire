@@ -993,10 +993,34 @@ function addCode(){
   if(activeCodes.has(key)){ flashInput(inp,'#ffaa00'); return; }
   activeCodes.add(key);
   renderBadges();
-  if(key==='hybrid') document.getElementById('hybrid-extra').style.display='block';
+  if(key==='hybrid'){
+    document.getElementById('hybrid-extra').style.display='block';
+    rebuildHybridGrid();
+  }
   spawnPreviewDragon();
   checkCreateReady();
   flashInput(inp,'#44cc88');
+}
+
+function rebuildHybridGrid(){
+  selectedHybridIdx=-1;
+  const grid=document.getElementById('hybrid-grid');
+  grid.innerHTML='';
+  TRIBES.forEach((t,i)=>{
+    if(i===selectedTribeIdx) return; // exclude primary tribe
+    const card=document.createElement('div');
+    card.className='tcard';
+    card.style.borderColor='#'+t.color.toString(16).padStart(6,'0')+'99';
+    card.innerHTML=`<div class="tname" style="color:#${t.acc.toString(16).padStart(6,'0')}">${t.name}</div>
+      <div class="tstats">${t.desc}</div>`;
+    card.onclick=()=>{
+      grid.querySelectorAll('.tcard').forEach(c=>c.classList.remove('sel'));
+      card.classList.add('sel');
+      selectedHybridIdx=i;
+      checkCreateReady();
+    };
+    grid.appendChild(card);
+  });
 }
 
 function removeCode(key){
