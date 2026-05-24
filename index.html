@@ -86,7 +86,9 @@ p  { font-size:15px; line-height:1.7; margin:0 0 12px; opacity:.88; }
 .badge-animus  { background:#8822dd; box-shadow:0 0 10px rgba(160,40,255,.5); }
 .badge-hybrid  { background:#117744; box-shadow:0 0 10px rgba(40,180,100,.4); }
 .badge-royalty { background:#aa7700; box-shadow:0 0 10px rgba(255,180,0,.5); }
-.badge-seer    { background:#006655; box-shadow:0 0 10px rgba(0,200,150,.5); }
+.badge-seer      { background:#006655; box-shadow:0 0 10px rgba(0,200,150,.5); }
+.badge-leafspeak { background:#1a5c0a; box-shadow:0 0 10px rgba(60,200,60,.5); }
+.badge-flamesilk { background:#cc4400; box-shadow:0 0 10px rgba(255,120,0,.5); }
 .code-hint { font-size:12px; opacity:.5; font-style:italic; }
 
 /* ── Winglet cards ───────────────────────────── */
@@ -201,8 +203,9 @@ p  { font-size:15px; line-height:1.7; margin:0 0 12px; opacity:.88; }
 
     <!-- Hybrid second tribe (shown only if HYBRID code entered) -->
     <div id="hybrid-extra" style="display:none;margin-top:12px;border-top:1px solid rgba(255,255,255,.12);padding-top:12px">
-      <h3 style="margin-bottom:8px;color:#44cc88">Your Other Parent's Tribe</h3>
-      <div class="tribe-grid" id="hybrid-grid" style="max-height:200px"></div>
+      <h3 style="margin-bottom:4px;color:#44cc88">Your Other Parent Tribes</h3>
+      <p style="font-size:12px;opacity:.55;margin:0 0 8px">Pick as many as you want — the more tribes, the weirder you look</p>
+      <div class="tribe-grid" id="hybrid-grid" style="max-height:220px"></div>
     </div>
   </div>
 
@@ -400,17 +403,27 @@ const TRIBES = [
   { name:'RainWing',  color:0x8844ff, acc:0xff44cc, belly:0xcc55ff, eye:0xffff44, eyeGlow:0xcccc00,
     desc:'Relaxed · Clever · Venom spit', homeland:'the Rain Kingdom',
     traitText:'colorful and creative', jobBonus:['Artist','Healer','Explorer'], rainbow:true },
+  { name:'LeafWing',  color:0x2d6b1a, acc:0x7bc96b, belly:0x4a8c3a, eye:0x22ff44, eyeGlow:0x00cc22,
+    desc:'Fierce · Nature bond · Rare LeafSpeak', homeland:'the Poison Jungle',
+    traitText:'fierce and independent', jobBonus:['Healer','Farmer','Explorer'], leaf:true },
+  { name:'SilkWing',  color:0xff8833, acc:0xffcc44, belly:0xffe0aa, eye:0xff9900, eyeGlow:0xff5500,
+    desc:'Graceful · Silk spinners · Some are Flamesilk', homeland:'the Hive Kingdom',
+    traitText:'creative and graceful', jobBonus:['Artist','Merchant','Teacher'], silk:true },
+  { name:'HiveWing',  color:0xddcc22, acc:0x222222, belly:0xffee88, eye:0xff8800, eyeGlow:0xff5500,
+    desc:'Fast · Venomous · Stinger tail', homeland:'the Hive Kingdom',
+    traitText:'fierce and disciplined', jobBonus:['Soldier','Guard','Spy'], hive:true },
 ];
 
-const SECRET_CODES = { 'ANIMUS':'animus', 'HYBRID':'hybrid', 'ROYAL':'royalty', 'SEER':'seer' };
+const SECRET_CODES = { 'ANIMUS':'animus', 'HYBRID':'hybrid', 'ROYAL':'royalty', 'SEER':'seer', 'LEAFSPEAK':'leafspeak', 'FLAMESILK':'flamesilk' };
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CHARACTER STATE
 // ═══════════════════════════════════════════════════════════════════════════
 
 const C = {
-  name:'', tribe:null, hybrid2:null,
+  name:'', tribe:null, hybrid2:null, hybridTribes:[],
   animus:false, hybrid:false, royalty:false, seer:false,
+  leafspeak:false, flamesilk:false,
   winglet:'', job:'', jobDesc:'',
   choices:[], storyLog:[],
 };
@@ -534,81 +547,89 @@ function cone(r,h,mat,px,py,pz,rx=0,rz=0){
   m.position.set(px,py,pz); m.rotation.x=rx; m.rotation.z=rz; m.castShadow=true; return m;
 }
 
-function buildDragon(tribe, special={}, scale=1){
+function buildDragon(tribe, special={}, scale=1, extraTribes=[]){
   const g = new THREE.Group();
-  const t = tribe;
+  const t = tribe;  // primary tribe always drives structure (horns, wing shape, tail type)
 
-  const mBody  = matStd(t.color, 0.68, 0.04);
-  const mAcc   = matStd(t.acc,   0.55, 0.08);
-  const mBelly = matStd(t.belly, 0.75, 0);
-  const mEye   = matStd(t.eye,   0.1,  0.4, t.eyeGlow, 0.9);
+  // Multi-tribe hybrid: each major body region uses a different tribe's colors
+  const allT = [tribe, ...extraTribes.filter(x=>x&&x.color!==undefined)];
+  const pick = i => allT[i % allT.length];
+  const tB  = pick(0);                        // body: primary
+  const tN  = pick(allT.length>1?1:0);        // neck: second tribe
+  const tH  = pick(allT.length>2?2:allT.length>1?1:0); // head: third or second
+  const tA  = pick(allT.length>1?1:0);        // accents: second tribe
+  const tW  = pick(allT.length>1?allT.length-1:0); // wings: last tribe
+  const tTl = pick(allT.length>1?allT.length-1:0); // tail: last tribe
+
+  const mBody  = matStd(tB.color,  0.68, 0.04);
+  const mNeck  = matStd(tN.color,  0.68, 0.04);
+  const mHead  = matStd(tH.color,  0.68, 0.04);
+  const mAcc   = matStd(tA.acc,    0.55, 0.08);
+  const mBelly = matStd(tN.belly,  0.75, 0);
+  const mEye   = matStd(t.eye,     0.1,  0.4, t.eyeGlow, 0.9);
   const mPupil = matStd(0x000000, 1, 0);
   const mDark  = matStd(0x080808, 1, 0);
-  const mWing  = matDbl(t.color, 0.82, t.name==='IceWing'?0.55:0.78);
-  const mBone  = matStd(t.acc, 0.6, 0.06);
-  const mHorn  = matStd(t.acc, 0.5, 0.1);
+  const mWing  = matDbl(tW.color,  0.82, t.name==='IceWing'?0.55:0.78);
+  const mBone  = matStd(tA.acc,    0.6,  0.06);
+  const mHorn  = matStd(tW.acc,    0.5,  0.1);
+  const mTail  = matStd(tTl.color, 0.68, 0.04);
+  const mTAcc  = matStd(tTl.acc,   0.5,  0.1);
 
   // ── Body ────────────────────────────────────────────────────────────────
-  g.add(ell(1.25,0.82,1.95, mBody, 0,0,0));        // torso core
-  g.add(ell(1.12,0.78,1.35, mBody, 0,0.06,0.85));  // chest swell
-  g.add(ell(1.05,0.76,1.25, mBody, 0,-0.04,-0.8)); // hindquarters
-  g.add(ell(0.88,0.38,1.72, mBelly, 0,-0.44,0));   // belly underside
-
-  // Shoulder blades
+  g.add(ell(1.25,0.82,1.95, mBody, 0,0,0));
+  g.add(ell(1.12,0.78,1.35, mBody, 0,0.06,0.85));
+  g.add(ell(1.05,0.76,1.25, mBody, 0,-0.04,-0.8));
+  g.add(ell(0.88,0.38,1.72, mBelly, 0,-0.44,0));
   [-1,1].forEach(s=> g.add(ell(0.35,0.28,0.55, mBody, s*0.85,0.35,0.7)));
 
-  // ── Neck ────────────────────────────────────────────────────────────────
+  // ── Neck (second tribe color when hybrid) ─────────────────────────────
   const nk=[
     [0.38,[0,0.28,1.32]],[0.35,[0,0.6,1.74]],[0.31,[0,0.98,2.12]],
     [0.28,[0,1.38,2.40]],[0.25,[0,1.72,2.56]],
   ];
-  nk.forEach(([r,p])=>{ const s=sph(r,mBody,...p); g.add(s); });
+  nk.forEach(([r,p])=>{ g.add(sph(r,mNeck,...p)); });
 
-  // ── Head ────────────────────────────────────────────────────────────────
-  g.add(ell(0.90,0.80,1.08, mBody, 0,1.85,2.85)); // skull
-  g.add(ell(0.62,0.54,0.92, mBody, 0,1.65,3.35)); // upper snout
-  g.add(ell(0.64,0.38,0.86, mBody, 0,1.41,3.20)); // lower jaw
-  g.add(ell(0.48,0.28,0.58, mAcc,  0,1.74,3.35)); // snout bridge (accent)
-  g.add(ell(0.30,0.14,0.28, mBelly,0,1.36,3.62)); // chin flap
-
-  // ── Nostrils ─────────────────────────────────────────────────────────────
+  // ── Head (third tribe color when 3-way hybrid) ────────────────────────
+  g.add(ell(0.90,0.80,1.08, mHead,  0,1.85,2.85));
+  g.add(ell(0.62,0.54,0.92, mHead,  0,1.65,3.35));
+  g.add(ell(0.64,0.38,0.86, mHead,  0,1.41,3.20));
+  g.add(ell(0.48,0.28,0.58, mAcc,   0,1.74,3.35));
+  g.add(ell(0.30,0.14,0.28, mBelly, 0,1.36,3.62));
   [-0.14,0.14].forEach(x=>{ g.add(sph(0.065,mDark, x,1.60,3.70)); });
-
-  // ── Eyes ─────────────────────────────────────────────────────────────────
   [-0.32,0.32].forEach(x=>{
-    g.add(sph(0.175,mDark,  x, 1.90, 3.06)); // socket
-    g.add(sph(0.145,mEye,   x, 1.90, 3.12)); // iris
+    g.add(sph(0.175,mDark, x,1.90,3.06));
+    g.add(sph(0.145,mEye,  x,1.90,3.12));
     const p=new THREE.Mesh(new THREE.SphereGeometry(0.075,8,8),mPupil);
-    p.scale.set(t.name==='NightWing'?0.5:0.45,1,0.28); // slit pupil
+    p.scale.set(t.name==='NightWing'?0.5:0.45,1,0.28);
     p.position.set(x,1.90,3.22); g.add(p);
   });
 
-  // ── Tribe horns/frills ───────────────────────────────────────────────────
-  addHorns(g, t, mHorn, mAcc, mBody);
-
-  // ── Dorsal spines ────────────────────────────────────────────────────────
+  // ── Structural features (always from primary tribe) ───────────────────
+  addHorns(g, t, mHorn, mAcc, mHead);
   addSpines(g, t, mAcc);
-
-  // ── Wings ────────────────────────────────────────────────────────────────
   const wings = addWings(g, t, mWing, mBone);
   g.userData.lWing = wings.l;
   g.userData.rWing = wings.r;
-
-  // ── Tail ─────────────────────────────────────────────────────────────────
-  addTail(g, t, mBody, mAcc);
-
-  // ── Legs ─────────────────────────────────────────────────────────────────
+  addTail(g, t, mTail, mTAcc);
   addLegs(g, mBody, mAcc);
 
-  // ── Tribe special markings ───────────────────────────────────────────────
-  if(t.stars)   addStars(g);
-  if(t.bio)     addBio(g, t);
-  if(t.crystal) addCrystals(g, mAcc);
-  if(t.rainbow) addRuff(g, mBody);
+  // ── Tribe special markings (run for ALL tribes present in this dragon) ─
+  const allTribesForMarkings = [...new Set(allT)];
+  allTribesForMarkings.forEach(tr=>{
+    if(tr.stars)   addStars(g);
+    if(tr.bio)     addBio(g, tr);
+    if(tr.crystal) addCrystals(g, matStd(tr.acc,0.6,0.06));
+    if(tr.rainbow) addRuff(g, matStd(tr.color,0.7,0));
+    if(tr.leaf)    addLeafFeathers(g, tr);
+    if(tr.hive)    addHiveStripes(g, tr);
+    if(tr.silk)    addSilkMarkings(g, tr);
+  });
 
-  // ── Special status effects ───────────────────────────────────────────────
-  if(special.animus)  addAnimusGlow(g);
-  if(special.royalty) addCrown(g, t);
+  // ── Special status effects ────────────────────────────────────────────
+  if(special.animus)    addAnimusGlow(g);
+  if(special.royalty)   addCrown(g, t);
+  if(special.flamesilk) addFlamesilkGlow(g);
+  if(special.leafspeak) addLeafSpeakAura(g);
 
   g.scale.setScalar(scale);
   return g;
@@ -667,12 +688,109 @@ function addHorns(g,t,mHorn,mAcc,mBody){
       g.add(h2);
     });
   } else if(t.name==='RainWing'){
-    // head crest
     for(let i=0;i<3;i++){
       const angle=(i/2-0.5)*0.6;
       const cr=cone(0.045,0.28+i*0.06,mAcc,Math.sin(angle)*0.22,2.22+i*0.03,2.72,-0.1,angle*0.5);
       g.add(cr);
     }
+  } else if(t.name==='LeafWing'){
+    // flat leaf-shaped head frills
+    [-0.28,0.28].forEach((x,i)=>{
+      const leaf=new THREE.Mesh(new THREE.SphereGeometry(0.18,6,4),mAcc);
+      leaf.scale.set(0.5,1.4,0.2); leaf.position.set(x,2.26,2.70);
+      leaf.rotation.z=i===0?0.35:-0.35; leaf.rotation.x=-0.15; g.add(leaf);
+    });
+    // small ridge along snout
+    for(let i=0;i<3;i++){
+      const r=cone(0.04,0.14,mAcc,0,1.96+i*0.08,3.18+i*0.04,-0.25);
+      g.add(r);
+    }
+  } else if(t.name==='SilkWing'){
+    // moth-like antennae
+    [-0.18,0.18].forEach((x,i)=>{
+      const stem=cyl(0.025,0.015,0.55,mAcc,x,2.42,2.68,-0.3,i===0?0.22:-0.22);
+      g.add(stem);
+      const tip=sph(0.045,mAcc,x+(i===0?0.12:-0.12),2.72,2.68);
+      g.add(tip);
+    });
+  } else if(t.name==='HiveWing'){
+    // short sharp black horns
+    [-0.26,0.26].forEach((x,i)=>{
+      const h=cone(0.055,0.40,mAcc,x,2.22,2.70,-0.1,i===0?0.18:-0.18);
+      g.add(h);
+    });
+    // small chin barb
+    const barb=cone(0.04,0.18,mAcc,0,1.38,3.32,0.35); g.add(barb);
+  }
+}
+
+// ── Tribe special marking functions ──────────────────────────────────────
+
+function addLeafFeathers(g,t){
+  const mat=new THREE.MeshStandardMaterial({color:t.acc,roughness:0.7,
+    side:THREE.DoubleSide,transparent:true,opacity:0.82});
+  // Leaf-shaped scales along dorsal ridge
+  for(let i=0;i<5;i++){
+    const leaf=new THREE.Mesh(new THREE.SphereGeometry(0.14+i*.02,6,4),mat);
+    leaf.scale.set(0.4,1.5,0.15);
+    leaf.position.set(0,0.55+(5-i)*.05, 0.6-i*.4);
+    leaf.rotation.x=0.2; g.add(leaf);
+  }
+  // A few leaf scales on neck
+  for(let i=0;i<3;i++){
+    const lf=new THREE.Mesh(new THREE.SphereGeometry(0.10,5,4),mat);
+    lf.scale.set(0.35,1.3,0.12);
+    lf.position.set((Math.random()-.5)*.3, 0.8+i*.3, 1.6+i*.3);
+    lf.rotation.x=-0.3; g.add(lf);
+  }
+}
+
+function addSilkMarkings(g,t){
+  // Silk thread filaments on body — thin glowing lines
+  const mat=new THREE.MeshBasicMaterial({color:t.acc,transparent:true,opacity:0.55});
+  for(let i=0;i<8;i++){
+    const θ=(i/8)*Math.PI*2;
+    const filament=new THREE.Mesh(new THREE.CylinderGeometry(0.018,0.008,1.2+Math.random()*.6,4),mat);
+    filament.position.set(Math.cos(θ)*0.7,Math.sin(θ)*0.5,(-Math.random()*.8));
+    filament.rotation.z=Math.random()*.5-.25; g.add(filament);
+  }
+  // Wing-spot dots (decorative)
+}
+
+function addHiveStripes(g,t){
+  const blackMat=new THREE.MeshStandardMaterial({color:0x111111,roughness:0.8});
+  // Alternating black bands around torso
+  [-0.6,-0.1,0.4].forEach(z=>{
+    const band=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.05,0.18,14),blackMat);
+    band.position.set(0,-0.15,z); band.rotation.x=Math.PI/2; g.add(band);
+  });
+}
+
+function addFlamesilkGlow(g){
+  // Orange/red glowing silk threads radiating from body
+  const flameMat=new THREE.MeshStandardMaterial({color:0xff5500,emissive:0xff3300,
+    emissiveIntensity:1.6,roughness:0.1,transparent:true,opacity:0.7});
+  for(let i=0;i<10;i++){
+    const θ=(i/10)*Math.PI*2+Math.random()*.4;
+    const thread=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.008,1.0+Math.random()*.8,4),flameMat);
+    thread.position.set(Math.cos(θ)*0.9,Math.sin(θ)*0.7,Math.random()*1.4-0.7);
+    thread.rotation.z=Math.cos(θ)*.8; g.add(thread);
+  }
+  const glow=new THREE.Mesh(new THREE.SphereGeometry(2.8,12,12),
+    new THREE.MeshBasicMaterial({color:0xff4400,transparent:true,opacity:0.06,side:THREE.BackSide}));
+  g.add(glow);
+}
+
+function addLeafSpeakAura(g){
+  // Tiny floating leaf shapes around the dragon
+  const mat=new THREE.MeshStandardMaterial({color:0x44cc22,emissive:0x228811,
+    emissiveIntensity:0.8,roughness:0.6,side:THREE.DoubleSide,transparent:true,opacity:0.75});
+  for(let i=0;i<8;i++){
+    const θ=(i/8)*Math.PI*2;
+    const leaf=new THREE.Mesh(new THREE.SphereGeometry(0.1,5,4),mat);
+    leaf.scale.set(0.5,1.4,0.15);
+    leaf.position.set(Math.cos(θ)*2.2,Math.sin(θ)*1.4+0.5,Math.random()*.8-.4);
+    leaf.rotation.z=θ; g.add(leaf);
   }
 }
 
@@ -751,23 +869,24 @@ function addTail(g,t,mBody,mAcc){
     const seg=new THREE.Mesh(new THREE.CylinderGeometry(r1,r2,l,10),mBody);
     seg.position.set(...pos); seg.rotation.x=rx; seg.castShadow=true; g.add(seg);
   });
-  // Tail tip — SandWing gets a barbed spike, others a point
+  // Tail tip by tribe
   if(t.name==='SandWing'){
-    const spike=cone(0.1,0.65,mAcc, 0,-1.75,-4.72,0.55);
-    g.add(spike);
+    const spike=cone(0.1,0.65,mAcc,0,-1.75,-4.72,0.55); g.add(spike);
     [-0.14,0.14].forEach(x=>{
-      const barb=cone(0.05,0.25,mAcc,x,-1.66,-4.60,0.4,x<0?0.4:-0.4);
-      g.add(barb);
+      g.add(cone(0.05,0.25,mAcc,x,-1.66,-4.60,0.4,x<0?0.4:-0.4));
     });
   } else if(t.name==='SeaWing'){
-    // Fan tail
     [-0.25,0,0.25].forEach(x=>{
       const fin=new THREE.Mesh(new THREE.ConeGeometry(0.06,0.38,5),mAcc);
       fin.position.set(x,-1.70,-4.65); fin.rotation.x=0.6; fin.rotation.z=x*0.8; g.add(fin);
     });
+  } else if(t.name==='HiveWing'){
+    // Curved venom stinger — longer, sharper, slightly curved upward
+    const stingMat=new THREE.MeshStandardMaterial({color:0x222200,roughness:0.4,metalness:0.5});
+    const sting=cone(0.07,0.60,stingMat,0,-1.72,-4.70,0.42); g.add(sting);
+    const tip2=cone(0.03,0.22,stingMat,0,-1.56,-4.90,0.25); g.add(tip2);
   } else {
-    const tip=cone(0.08,0.32,mAcc, 0,-1.68,-4.64,0.5);
-    g.add(tip);
+    g.add(cone(0.08,0.32,mAcc,0,-1.68,-4.64,0.5));
   }
 }
 
@@ -1013,7 +1132,7 @@ function setupScene(id){
 
   if(['story','winglet','job','end','recap'].includes(id) && C.tribe){
     if(!playerDragon){
-      playerDragon=buildDragon(C.tribe,{animus:C.animus,royalty:C.royalty},1);
+      playerDragon=buildDragon(C.tribe,{animus:C.animus,royalty:C.royalty,flamesilk:C.flamesilk,leafspeak:C.leafspeak},1,C.hybridTribes);
       scene.add(playerDragon);
     }
     playerDragon.position.set(3.5,0,0);
@@ -1034,14 +1153,16 @@ function setupScene(id){
 
 let previewDragon=null;
 let selectedTribeIdx=-1;
-let selectedHybridIdx=-1;
+const selectedHybridIdxs=new Set();
 const activeCodes=new Set();
 
 function spawnPreviewDragon(){
   if(previewDragon){ scene.remove(previewDragon); previewDragon=null; }
   if(selectedTribeIdx<0) return;
   const t=TRIBES[selectedTribeIdx];
-  previewDragon=buildDragon(t,{animus:activeCodes.has('animus'),royalty:activeCodes.has('royalty')},1);
+  const extras=[...selectedHybridIdxs].map(i=>TRIBES[i]);
+  previewDragon=buildDragon(t,{animus:activeCodes.has('animus'),royalty:activeCodes.has('royalty'),
+    flamesilk:activeCodes.has('flamesilk'),leafspeak:activeCodes.has('leafspeak')},1,extras);
   previewDragon.position.set(3.5,0,0);
   previewDragon.rotation.y=-0.7;
   scene.add(previewDragon);
@@ -1055,12 +1176,7 @@ function buildSelectGrid(){
     spawnPreviewDragon();
     checkCreateReady();
   });
-  buildTribeGrid('hybrid-grid', idx=>{
-    document.querySelectorAll('#hybrid-grid .tcard').forEach(c=>c.classList.remove('sel'));
-    document.querySelectorAll('#hybrid-grid .tcard')[idx].classList.add('sel');
-    selectedHybridIdx=idx;
-    checkCreateReady();
-  });
+  // hybrid-grid is built by rebuildHybridGrid when HYBRID code is entered
 }
 
 function buildTribeGrid(containerId, onSelect){
@@ -1097,20 +1213,20 @@ function addCode(){
 }
 
 function rebuildHybridGrid(){
-  selectedHybridIdx=-1;
+  selectedHybridIdxs.clear();
   const grid=document.getElementById('hybrid-grid');
   grid.innerHTML='';
   TRIBES.forEach((t,i)=>{
-    if(i===selectedTribeIdx) return; // exclude primary tribe
+    if(i===selectedTribeIdx) return;
     const card=document.createElement('div');
     card.className='tcard';
     card.style.borderColor='#'+t.color.toString(16).padStart(6,'0')+'99';
     card.innerHTML=`<div class="tname" style="color:#${t.acc.toString(16).padStart(6,'0')}">${t.name}</div>
       <div class="tstats">${t.desc}</div>`;
     card.onclick=()=>{
-      grid.querySelectorAll('.tcard').forEach(c=>c.classList.remove('sel'));
-      card.classList.add('sel');
-      selectedHybridIdx=i;
+      if(selectedHybridIdxs.has(i)){ selectedHybridIdxs.delete(i); card.classList.remove('sel'); }
+      else { selectedHybridIdxs.add(i); card.classList.add('sel'); }
+      spawnPreviewDragon();
       checkCreateReady();
     };
     grid.appendChild(card);
@@ -1119,7 +1235,7 @@ function rebuildHybridGrid(){
 
 function removeCode(key){
   activeCodes.delete(key);
-  if(key==='hybrid'){ document.getElementById('hybrid-extra').style.display='none'; selectedHybridIdx=-1; }
+  if(key==='hybrid'){ document.getElementById('hybrid-extra').style.display='none'; selectedHybridIdxs.clear(); }
   renderBadges();
   spawnPreviewDragon();
   checkCreateReady();
@@ -1128,7 +1244,7 @@ function removeCode(key){
 function chooseNormal(){
   activeCodes.clear(); renderBadges();
   document.getElementById('hybrid-extra').style.display='none';
-  selectedHybridIdx=-1;
+  selectedHybridIdxs.clear();
   spawnPreviewDragon();
   checkCreateReady();
 }
@@ -1137,7 +1253,9 @@ function renderBadges(){
   const row=document.getElementById('badge-row');
   row.innerHTML='';
   activeCodes.forEach(k=>{
-    const labels={animus:'✨ Animus',hybrid:'🌿 Hybrid',royalty:'👑 Royalty',seer:'🔮 Seer'};
+    const labels={animus:'✨ Animus',hybrid:'🌿 Hybrid',royalty:'👑 Royalty',
+      seer:'🔮 Seer',leafspeak:'🍃 LeafSpeak',flamesilk:'🔥 Flamesilk'};
+    if(!labels[k]) return;
     row.innerHTML+=`<span class="badge badge-${k}">${labels[k]}<span class="x" onclick="removeCode('${k}')">×</span></span>`;
   });
 }
@@ -1150,7 +1268,7 @@ function flashInput(el,col){
 function checkCreateReady(){
   const name=document.getElementById('dragon-name').value.trim();
   const tribeOk=selectedTribeIdx>=0;
-  const hybridOk=!activeCodes.has('hybrid')||selectedHybridIdx>=0;
+  const hybridOk=!activeCodes.has('hybrid')||selectedHybridIdxs.size>0;
   document.getElementById('btn-begin').disabled=!(name&&tribeOk&&hybridOk);
 }
 
@@ -1159,15 +1277,18 @@ function beginLife(){
   if(playerDragon){ scene.remove(playerDragon); playerDragon=null; }
   C.name=document.getElementById('dragon-name').value.trim();
   C.tribe=TRIBES[selectedTribeIdx];
-  C.hybrid2=activeCodes.has('hybrid')&&selectedHybridIdx>=0?TRIBES[selectedHybridIdx]:null;
+  C.hybridTribes=activeCodes.has('hybrid')?[...selectedHybridIdxs].map(i=>TRIBES[i]):[];
+  C.hybrid2=C.hybridTribes[0]||null;
   C.animus=activeCodes.has('animus');
   C.hybrid=activeCodes.has('hybrid');
   C.royalty=activeCodes.has('royalty');
   C.seer=activeCodes.has('seer');
+  C.leafspeak=activeCodes.has('leafspeak');
+  C.flamesilk=activeCodes.has('flamesilk');
   C.choices=[]; C.storyLog=[];
 
   if(previewDragon){ scene.remove(previewDragon); previewDragon=null; }
-  playerDragon=buildDragon(C.tribe,{animus:C.animus,royalty:C.royalty},1);
+  playerDragon=buildDragon(C.tribe,{animus:C.animus,royalty:C.royalty,flamesilk:C.flamesilk,leafspeak:C.leafspeak},1,C.hybridTribes);
   scene.add(playerDragon);
 
   updateStatusBar();
@@ -1179,10 +1300,13 @@ function updateStatusBar(){
   if(!C.tribe){ sb.style.display='none'; return; }
   sb.style.display='flex';
   let badges=`<span style="color:#${C.tribe.acc.toString(16).padStart(6,'0')}">${C.tribe.name}</span>`;
-  if(C.animus)  badges+=`<span class="badge badge-animus" style="padding:2px 8px">Animus</span>`;
-  if(C.hybrid&&C.hybrid2) badges+=`<span class="badge badge-hybrid" style="padding:2px 8px">Hybrid/${C.hybrid2.name}</span>`;
-  if(C.royalty) badges+=`<span class="badge badge-royalty" style="padding:2px 8px">Royalty</span>`;
-  if(C.seer)    badges+=`<span class="badge badge-seer"    style="padding:2px 8px">Seer</span>`;
+  if(C.animus)    badges+=`<span class="badge badge-animus"    style="padding:2px 8px">Animus</span>`;
+  if(C.hybrid&&C.hybridTribes.length)
+    badges+=`<span class="badge badge-hybrid" style="padding:2px 8px">Hybrid — ${C.hybridTribes.map(t=>t.name).join('/')}</span>`;
+  if(C.royalty)   badges+=`<span class="badge badge-royalty"   style="padding:2px 8px">Royalty</span>`;
+  if(C.seer)      badges+=`<span class="badge badge-seer"      style="padding:2px 8px">Seer</span>`;
+  if(C.leafspeak) badges+=`<span class="badge badge-leafspeak" style="padding:2px 8px">🍃 LeafSpeak</span>`;
+  if(C.flamesilk) badges+=`<span class="badge badge-flamesilk" style="padding:2px 8px">🔥 Flamesilk</span>`;
   sb.innerHTML=`<strong style="opacity:.6;font-size:13px">${C.name}</strong> ${badges}`;
 }
 
@@ -1194,7 +1318,7 @@ let eggStep=0;
 const EGG_STEPS=[
   { title:'Your Egg', btn:'Tap…',
     text:()=>`Deep in ${C.tribe.homeland}, a ${C.tribe.name} egg rests in a warm nest. It is ${
-      C.hybrid?`unusual — one side shimmers ${C.tribe.name} ${C.tribe.color < 0x888888 ? 'dark' : 'bright'} and the other side is ${C.hybrid2.name} ${C.hybrid2.color < 0x888888 ? 'dark' : 'bright'}` :
+      C.hybrid&&C.hybridTribes.length?`unusual — it swirls with ${[C.tribe,...C.hybridTribes].map(t=>t.name).join(', ')} colors, a patchwork of bloodlines unlike any egg seen before` :
       `beautifully ${C.tribe.name}-colored`}. ${C.royalty?`It bears the royal family’s crest — a perfect emblem pressed into the shell.`:''}`
   },
   { title:'Something Stirs', btn:'It moves…', crackNow:true,
@@ -1285,8 +1409,8 @@ function storyAdvance(){
 // ═══════════════════════════════════════════════════════════════════════════
 
 function startDragonetPhase(){
-  const hybridLine=C.hybrid&&C.hybrid2
-    ? ` Your mother was a ${C.tribe.name} and your father was a ${C.hybrid2.name} — you carry both bloodlines, a rare and powerful inheritance.`
+  const hybridLine=C.hybrid&&C.hybridTribes.length
+    ? ` You carry ${C.hybridTribes.length===1?'two bloodlines':'multiple bloodlines'}: ${C.tribe.name} and ${C.hybridTribes.map(t=>t.name).join(' and ')} — a rare and powerful inheritance.`
     : '';
   const animusLine=C.animus
     ? ` Even as a newborn dragonet, objects seem to move when you look at them too long. You might be an animus.` : '';
@@ -1388,10 +1512,10 @@ function startAcademyLife(){
     ]
   }] : [];
 
-  const hybridEvent=C.hybrid&&C.hybrid2 ? [{
+  const hybridEvent=C.hybrid&&C.hybridTribes.length ? [{
     chapter:'Chapter III — Academy Life', title:'Between Two Worlds',
     narrator:'At dinner, a group of students talk louder than they should.',
-    text:()=>`You overhear a ${C.tribe.name} student saying "${C.tribe.name}s and ${C.hybrid2.name}s don't mix — that's just how it is." Your clawmate, the ${clawmate.name}, catches your eye across the table.`,
+    text:()=>`You overhear a ${C.tribe.name} student saying "Different tribes don't mix — that's just how it is." They haven't seen you yet. Your clawmate, the ${clawmate.name}, catches your eye across the table.`,
     choices:[
       { label:'"Actually, they do. I\'m proof."',
         log:'Stood up for hybrid identity.' },
@@ -1462,6 +1586,9 @@ function randomDragonName(tribe){
     SandWing:['Dune','Cactus','Sandstorm','Umber'],
     IceWing:['Snowfall','Frost','Crystal','Glacier'],
     RainWing:['Kinkajou','Papaya','Siamang','Loris'],
+    LeafWing:['Sequoia','Hazel','Hemlock','Fern'],
+    SilkWing:['Luna','Swordtail','Morpho','Monarch'],
+    HiveWing:['Yellowjacket','Hornet','Wasp','Stinger'],
   };
   const list=names[tribe.name]||['River'];
   return list[Math.floor(Math.random()*list.length)];
@@ -1605,7 +1732,7 @@ function startEnding(){
   document.getElementById('end-icon').textContent=ending.icon;
   const statusLine=[
     C.animus?'an animus dragon':null,
-    C.hybrid&&C.hybrid2?`a ${C.tribe.name}/${C.hybrid2.name} hybrid`:null,
+    C.hybrid&&C.hybridTribes.length?`a ${[C.tribe,...C.hybridTribes].map(t=>t.name).join('/')} hybrid`:null,
     C.royalty?'of royal blood':null,
   ].filter(Boolean);
   const statusStr=statusLine.length?` — ${statusLine.join(', ')} —`:'';
@@ -1617,7 +1744,7 @@ function showStats(){
   goTo('recap');
   document.getElementById('recap-name').textContent=C.name;
   const lines=[
-    `Tribe: ${C.tribe.name}${C.hybrid&&C.hybrid2?' (Hybrid — '+C.hybrid2.name+')':''}`,
+    `Tribe: ${C.tribe.name}${C.hybrid&&C.hybridTribes.length?' (Hybrid — '+[C.tribe,...C.hybridTribes].map(t=>t.name).join('/')+')'  :''}`,
     C.animus?'Status: Animus Dragon':'',
     C.royalty?'Status: Royalty':'',
     `Winglet: ${C.winglet||'—'}`,
@@ -1991,7 +2118,7 @@ function startWorldPhase(phase){
   WS.active=true; WS.phase=phase; WS.dialogOpen=false; WS.spellOpen=false;
   playerPos.set(0,0,4); playerFacing=0;
 
-  playerDragon=buildDragon(C.tribe,{animus:C.animus,royalty:C.royalty},1);
+  playerDragon=buildDragon(C.tribe,{animus:C.animus,royalty:C.royalty,flamesilk:C.flamesilk,leafspeak:C.leafspeak},1,C.hybridTribes);
   scene.add(playerDragon);
 
   if(phase==='hatchling'){
