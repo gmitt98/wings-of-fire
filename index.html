@@ -2,765 +2,1583 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<title>Wings of Fire — Dragon Battle</title>
+<title>Wings of Fire — My Dragon Life</title>
 <style>
-  * { box-sizing: border-box; }
-  html, body {
-    margin: 0; padding: 0; overflow: hidden; width: 100%; height: 100%;
-    background: #050b18; font-family: "Trebuchet MS", "Segoe UI", sans-serif; color: #fff;
-  }
-  canvas { display: block; position: fixed; top: 0; left: 0; z-index: 0; }
+* { box-sizing:border-box; }
+html,body { margin:0; padding:0; overflow:hidden; width:100%; height:100%;
+  background:#020810; font-family:"Trebuchet MS","Segoe UI",sans-serif; color:#fff; }
+canvas { position:fixed; inset:0; z-index:0; display:block; }
 
-  /* ── Overlay layers ─────────────────────────── */
-  .screen {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    display: none; flex-direction: column; align-items: center; justify-content: center;
-    z-index: 10;
-  }
-  .screen.active { display: flex; }
+/* ── Screens ─────────────────────────────────── */
+.scr { position:fixed; inset:0; display:none; flex-direction:column;
+  align-items:center; justify-content:center; z-index:10; }
+.scr.on { display:flex; }
 
-  /* ── Title screen ───────────────────────────── */
-  #screen-title { background: rgba(5,11,24,0.55); }
-  #screen-title h1 {
-    font-size: clamp(36px, 7vw, 72px); margin: 0 0 6px; text-align: center; line-height: 1.1;
-    background: linear-gradient(90deg, #ff6030, #ffcc00, #ffe870, #60e8ff, #c080ff);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-    text-shadow: none; letter-spacing: 2px;
-  }
-  #screen-title .tagline { font-size: 20px; opacity: 0.8; margin-bottom: 44px; text-align: center; }
-  .btn-gold {
-    padding: 14px 40px; font-size: 20px; font-family: inherit; font-weight: bold;
-    border: none; border-radius: 14px; cursor: pointer;
-    background: linear-gradient(135deg, #ffd700, #ff8c00); color: #1a0800;
-    box-shadow: 0 4px 20px rgba(255,180,0,0.5); transition: transform 0.12s, box-shadow 0.12s;
-  }
-  .btn-gold:hover { transform: scale(1.06); box-shadow: 0 6px 28px rgba(255,180,0,0.7); }
+/* ── Glass box ───────────────────────────────── */
+.box { background:rgba(6,14,32,0.90); border:1px solid rgba(160,200,255,0.16);
+  border-radius:18px; padding:28px 34px; max-width:510px; width:92%;
+  box-shadow:0 8px 44px rgba(0,0,0,0.6); }
 
-  /* ── Tribe select screen ────────────────────── */
-  #screen-select { background: rgba(5,11,24,0.72); }
-  #screen-select h2 {
-    font-size: clamp(24px, 4vw, 38px); margin: 0 0 6px; text-align: center;
-    color: #ffe870; text-shadow: 0 0 20px rgba(255,220,50,0.4);
-  }
-  #screen-select .hint { font-size: 15px; opacity: 0.65; margin-bottom: 28px; }
-  .tribe-grid {
-    display: flex; flex-wrap: wrap; gap: 12px;
-    justify-content: center; max-width: 860px; padding: 0 16px;
-    max-height: 70vh; overflow-y: auto;
-  }
-  .tribe-card {
-    background: rgba(255,255,255,0.07); border: 2px solid rgba(255,255,255,0.15);
-    border-radius: 14px; padding: 14px 16px; cursor: pointer; text-align: center;
-    width: 112px; transition: transform 0.18s, border-color 0.18s, background 0.18s;
-    user-select: none;
-  }
-  .tribe-card:hover {
-    transform: translateY(-6px) scale(1.04);
-    background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.5);
-  }
-  .tribe-card .t-name { font-size: 15px; font-weight: bold; margin-bottom: 5px; }
-  .tribe-card .t-stats { font-size: 12px; opacity: 0.7; line-height: 1.5; }
-  .tribe-card .t-ability { font-size: 11px; color: #ffd700; margin-top: 5px; }
+/* ── Typography ──────────────────────────────── */
+.game-title {
+  font-size:clamp(38px,7vw,70px); text-align:center; margin:0 0 4px; letter-spacing:2px;
+  background:linear-gradient(115deg,#ff5522,#ffcc33,#44eeff,#cc88ff);
+  -webkit-background-clip:text; background-clip:text; color:transparent; }
+.tagline { font-size:18px; opacity:.7; text-align:center; margin-bottom:38px; }
+h2 { font-size:clamp(20px,3vw,28px); margin:0 0 8px; color:#ffe8a0; }
+h3 { font-size:18px; margin:0 0 6px; color:#aaccff; }
+p  { font-size:15px; line-height:1.7; margin:0 0 12px; opacity:.88; }
 
-  /* ── Battle HUD ─────────────────────────────── */
-  #hud {
-    position: fixed; top: 0; left: 0; right: 0; padding: 14px 20px 10px;
-    display: none; z-index: 20; pointer-events: none;
-    background: linear-gradient(to bottom, rgba(5,11,24,0.9) 80%, transparent);
-  }
-  .hud-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-  .hud-name { font-size: 16px; font-weight: bold; width: 110px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .hud-bar-outer {
-    flex: 1; height: 20px; background: rgba(0,0,0,0.55);
-    border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.18);
-  }
-  .hud-bar-inner {
-    height: 100%; border-radius: 10px;
-    background: linear-gradient(90deg, #e84040, #ff6b35);
-    transition: width 0.45s ease;
-  }
-  .hud-bar-inner.player-bar {
-    background: linear-gradient(90deg, #06d6a0, #118ab2);
-  }
-  .hud-hp { font-size: 15px; width: 52px; text-align: right; }
+/* ── Buttons ─────────────────────────────────── */
+.btn { display:inline-block; padding:11px 26px; font-size:16px; font-family:inherit;
+  font-weight:bold; border:none; border-radius:12px; cursor:pointer;
+  transition:transform .13s, box-shadow .13s; }
+.btn:hover:not(:disabled) { transform:scale(1.05); }
+.btn:disabled { opacity:.38; cursor:not-allowed; }
+.btn-gold   { background:linear-gradient(135deg,#ffd700,#ff8c00); color:#1a0800;
+  box-shadow:0 3px 16px rgba(255,180,0,.4); }
+.btn-blue   { background:linear-gradient(135deg,#44aaff,#1155cc); color:#fff; }
+.btn-purple { background:linear-gradient(135deg,#aa66ff,#6622cc); color:#fff; }
+.btn-green  { background:linear-gradient(135deg,#44cc88,#117744); color:#fff; }
+.btn-silver { background:linear-gradient(135deg,#c0cce0,#8899bb); color:#0a1020; }
+.btn-sm { padding:8px 16px; font-size:13px; }
+.btn-row { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:18px; }
+.choice-btn {
+  display:block; width:100%; text-align:left; padding:12px 16px; margin-bottom:9px;
+  background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.16);
+  border-radius:12px; color:#fff; font-size:15px; font-family:inherit; cursor:pointer;
+  transition:background .18s, border-color .18s; }
+.choice-btn:hover:not(:disabled) { background:rgba(255,255,255,0.15);
+  border-color:rgba(255,220,80,.65); }
+.choice-btn:disabled { opacity:.4; cursor:not-allowed; }
 
-  /* ── Turn banner ────────────────────────────── */
-  #turn-banner {
-    position: fixed; top: 90px; left: 50%; transform: translateX(-50%);
-    font-size: 20px; font-weight: bold; text-align: center;
-    display: none; z-index: 20; text-shadow: 0 2px 8px rgba(0,0,0,0.9);
-    pointer-events: none;
-  }
+/* ── Name input ──────────────────────────────── */
+.name-in { width:100%; padding:12px 16px; font-size:22px; text-align:center;
+  font-family:inherit; background:rgba(255,255,255,0.09);
+  border:2px solid rgba(255,255,255,0.22); border-radius:12px; color:#fff; outline:none; }
+.name-in:focus { border-color:rgba(255,220,80,.7); }
+.name-in::placeholder { opacity:.4; }
 
-  /* ── Battle log ─────────────────────────────── */
-  #log-box {
-    position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%);
-    width: min(520px, 92vw); text-align: center;
-    display: none; z-index: 20; pointer-events: none;
-  }
-  #log-main {
-    font-size: clamp(17px, 3vw, 22px); font-weight: bold;
-    text-shadow: 0 2px 10px rgba(0,0,0,0.9); min-height: 28px;
-  }
-  #log-sub { font-size: 14px; opacity: 0.75; margin-top: 4px; min-height: 20px; }
+/* ── Tribe cards ─────────────────────────────── */
+.tribe-grid { display:flex; flex-wrap:wrap; gap:9px; justify-content:center;
+  max-width:820px; padding:0 14px; max-height:62vh; overflow-y:auto; }
+.tcard { background:rgba(255,255,255,0.07); border:2px solid rgba(255,255,255,0.14);
+  border-radius:12px; padding:11px 12px; cursor:pointer; text-align:center; width:104px;
+  transition:transform .18s, border-color .18s, background .18s; user-select:none; }
+.tcard:hover, .tcard.sel { transform:translateY(-5px) scale(1.04);
+  background:rgba(255,255,255,0.16); }
+.tcard.sel { border-color:rgba(255,220,80,.95); }
+.tname { font-size:14px; font-weight:bold; margin-bottom:3px; }
+.tstats { font-size:11px; opacity:.62; line-height:1.5; }
 
-  /* ── Action buttons ─────────────────────────── */
-  #actions {
-    position: fixed; bottom: 0; left: 0; right: 0; padding: 14px;
-    display: none; justify-content: center; gap: 12px; z-index: 20;
-    background: linear-gradient(to top, rgba(5,11,24,0.92) 85%, transparent);
-  }
-  #actions button {
-    padding: 11px 22px; font-size: 16px; font-family: inherit; font-weight: bold;
-    border: none; border-radius: 12px; cursor: pointer;
-    transition: transform 0.12s, box-shadow 0.12s; min-width: 100px;
-  }
-  #actions button:hover:not(:disabled) { transform: scale(1.07); }
-  #actions button:disabled { opacity: 0.38; cursor: not-allowed; transform: none; }
-  .btn-atk { background: linear-gradient(135deg,#e84040,#c02020); color: #fff; box-shadow: 0 3px 14px rgba(232,64,64,0.45); }
-  .btn-spc { background: linear-gradient(135deg,#ffd700,#ff8c00); color: #1a0800; box-shadow: 0 3px 14px rgba(255,180,0,0.45); }
-  .btn-def { background: linear-gradient(135deg,#4080ff,#2050cc); color: #fff; box-shadow: 0 3px 14px rgba(64,128,255,0.45); }
-  #cd-label { display: block; font-size: 11px; font-weight: normal; margin-top: 2px; opacity: 0.85; }
+/* ── Code entry ──────────────────────────────── */
+.code-row { display:flex; gap:8px; margin:10px 0 6px; }
+.code-in { flex:1; padding:9px 14px; font-size:15px; font-family:inherit;
+  background:rgba(255,255,255,0.09); border:1px solid rgba(255,255,255,0.22);
+  border-radius:10px; color:#fff; outline:none; text-transform:uppercase; }
+.code-in:focus { border-color:rgba(255,220,80,.65); }
+.code-in::placeholder { text-transform:none; opacity:.45; }
+.badge-row { display:flex; flex-wrap:wrap; gap:6px; min-height:26px; margin-bottom:6px; }
+.badge { padding:4px 11px; border-radius:20px; font-size:12px; font-weight:bold;
+  color:#fff; display:inline-flex; align-items:center; gap:5px; }
+.badge .x { cursor:pointer; opacity:.7; font-size:14px; line-height:1; }
+.badge .x:hover { opacity:1; }
+.badge-animus  { background:#8822dd; box-shadow:0 0 10px rgba(160,40,255,.5); }
+.badge-hybrid  { background:#117744; box-shadow:0 0 10px rgba(40,180,100,.4); }
+.badge-royalty { background:#aa7700; box-shadow:0 0 10px rgba(255,180,0,.5); }
+.code-hint { font-size:12px; opacity:.5; font-style:italic; }
 
-  /* ── Result overlay ─────────────────────────── */
-  #screen-result {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    display: none; flex-direction: column; align-items: center; justify-content: center;
-    background: rgba(5,11,24,0.82); z-index: 50;
-  }
-  #screen-result.active { display: flex; }
-  #result-title { font-size: clamp(52px, 10vw, 88px); font-weight: bold; margin-bottom: 12px; }
-  #result-body  { font-size: 20px; opacity: 0.85; margin-bottom: 38px; text-align: center; }
+/* ── Winglet cards ───────────────────────────── */
+.winglet-grid { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; }
+.wcard { background:rgba(255,255,255,0.08); border:2px solid rgba(255,255,255,0.15);
+  border-radius:12px; padding:14px 16px; cursor:pointer; text-align:center; width:145px;
+  transition:transform .18s, border-color .18s, background .18s; }
+.wcard:hover { transform:translateY(-4px); background:rgba(255,255,255,0.14);
+  border-color:rgba(255,220,80,.7); }
+.wcard-name { font-size:16px; font-weight:bold; margin-bottom:4px; }
+.wcard-desc { font-size:12px; opacity:.65; line-height:1.5; }
+
+/* ── Job cards ───────────────────────────────── */
+.job-grid { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; }
+.jcard { background:rgba(255,255,255,0.07); border:2px solid rgba(255,255,255,0.14);
+  border-radius:13px; padding:14px 16px; cursor:pointer; text-align:center;
+  width:155px; transition:transform .18s, border-color .18s; }
+.jcard:hover { transform:translateY(-4px); border-color:rgba(255,220,80,.7);
+  background:rgba(255,255,255,0.14); }
+.jcard-icon { font-size:32px; margin-bottom:5px; }
+.jcard-name { font-size:14px; font-weight:bold; margin-bottom:3px; }
+.jcard-desc { font-size:11px; opacity:.6; line-height:1.5; }
+
+/* ── Story screen ────────────────────────────── */
+#story-chapter { font-size:12px; text-transform:uppercase; letter-spacing:2px;
+  opacity:.5; margin-bottom:6px; }
+#story-text { font-size:clamp(14px,2vw,17px); line-height:1.75; margin:0 0 16px; opacity:.92; }
+#story-narrator { font-size:13px; color:#88aacc; opacity:.8; margin-bottom:14px;
+  font-style:italic; }
+
+/* ── Status strip ────────────────────────────── */
+#statusbar { position:fixed; top:0; left:0; right:0; padding:7px 18px;
+  display:none; z-index:20; font-size:13px; opacity:.75; pointer-events:none;
+  background:linear-gradient(to bottom,rgba(2,8,16,.85) 70%,transparent);
+  display:flex; gap:14px; align-items:center; }
+#statusbar span { padding:3px 10px; border-radius:20px;
+  background:rgba(255,255,255,.1); font-size:12px; }
+
+/* ── Egg screen ──────────────────────────────── */
+#egg-narr { font-size:clamp(15px,2.2vw,18px); line-height:1.75; opacity:.92; margin-bottom:20px; }
+
+/* ── Ending screen ───────────────────────────── */
+#end-header { font-size:clamp(28px,5vw,48px); font-weight:bold; text-align:center;
+  margin-bottom:10px; color:#ffd700; text-shadow:0 0 30px rgba(255,200,0,.5); }
+#end-sub { font-size:clamp(14px,2vw,18px); line-height:1.75; opacity:.9;
+  text-align:center; max-width:480px; }
+
+/* ── Progress dots ───────────────────────────── */
+.dots { display:flex; gap:6px; justify-content:center; margin-bottom:20px; }
+.dot { width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,.2); }
+.dot.done { background:rgba(255,220,80,.8); }
+.dot.now  { background:#fff; box-shadow:0 0 6px rgba(255,255,255,.8); }
+
+/* ── Scrollable boxes ────────────────────────── */
+.box-scroll { max-height:80vh; overflow-y:auto; }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 
-<!-- Title -->
-<div id="screen-title" class="screen active">
-  <h1>Wings of Fire</h1>
-  <div class="tagline">A Dragon Battle Adventure</div>
-  <button class="btn-gold" onclick="gotoSelect()">Choose Your Dragon →</button>
-</div>
+<!-- Status bar (shown during life phases) -->
+<div id="statusbar"></div>
 
-<!-- Tribe Select -->
-<div id="screen-select" class="screen">
-  <h2>Choose Your Tribe</h2>
-  <div class="hint">Each tribe has a unique special ability</div>
-  <div class="tribe-grid" id="tribe-grid"></div>
-</div>
-
-<!-- Battle HUD -->
-<div id="hud">
-  <div class="hud-row">
-    <div class="hud-name" id="p-name">SkyWing</div>
-    <div class="hud-bar-outer"><div class="hud-bar-inner player-bar" id="p-bar" style="width:100%"></div></div>
-    <div class="hud-hp" id="p-hp">90</div>
-  </div>
-  <div class="hud-row">
-    <div class="hud-name" id="e-name">NightWing</div>
-    <div class="hud-bar-outer"><div class="hud-bar-inner" id="e-bar" style="width:100%"></div></div>
-    <div class="hud-hp" id="e-hp">85</div>
-  </div>
-</div>
-
-<div id="turn-banner"></div>
-
-<div id="log-box">
-  <div id="log-main"></div>
-  <div id="log-sub"></div>
-</div>
-
-<div id="actions">
-  <button class="btn-atk" onclick="act('attack')">⚔️ Attack</button>
-  <button class="btn-spc" id="btn-spc" onclick="act('special')">
-    ✨ Special<span id="cd-label"></span>
+<!-- ══ TITLE ══════════════════════════════════════════════════════════════ -->
+<div id="s-title" class="scr on">
+  <div class="game-title">Wings of Fire</div>
+  <div class="tagline">Live the life of a dragon</div>
+  <button class="btn btn-gold" style="font-size:20px;padding:14px 42px" onclick="goTo('create')">
+    Begin Your Journey →
   </button>
-  <button class="btn-def" onclick="act('defend')">🛡️ Defend</button>
+  <div style="margin-top:22px;font-size:13px;opacity:.45;text-align:center">
+    Based on the book series by Tui T. Sutherland
+  </div>
 </div>
 
-<!-- Result -->
-<div id="screen-result">
-  <div id="result-title"></div>
-  <div id="result-body"></div>
-  <button class="btn-gold" onclick="restart()">Play Again</button>
+<!-- ══ CHARACTER CREATION ════════════════════════════════════════════════ -->
+<div id="s-create" class="scr">
+  <div style="text-align:center;margin-bottom:18px">
+    <h2 style="margin:0">Create Your Dragon</h2>
+    <p style="margin:4px 0 0;opacity:.6;font-size:14px">Choose your tribe, name, and destiny</p>
+  </div>
+
+  <!-- Step 1: Name -->
+  <div id="step-name" class="box" style="max-width:360px;width:90%;margin-bottom:14px">
+    <h3>What is your name?</h3>
+    <input class="name-in" id="dragon-name" type="text" placeholder="Enter your dragon's name"
+      maxlength="24" oninput="checkCreateReady()"/>
+  </div>
+
+  <!-- Step 2: Tribe -->
+  <div style="text-align:center;margin-bottom:10px">
+    <h3 style="margin:0 0 8px;color:#aaccff">Choose Your Tribe</h3>
+    <div class="tribe-grid" id="tribe-grid"></div>
+  </div>
+
+  <!-- Step 3: Special Status -->
+  <div class="box" style="max-width:480px;width:92%;margin-top:14px">
+    <h3 style="margin-bottom:8px">Special Status <span style="font-size:12px;opacity:.5;font-weight:normal">(optional)</span></h3>
+    <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+      <button class="btn btn-sm btn-gold" id="btn-normal" onclick="chooseNormal()">
+        🐉 Normal Dragon
+      </button>
+      <span style="opacity:.45;font-size:13px;align-self:center">— or enter a secret code →</span>
+    </div>
+    <div class="code-row">
+      <input class="code-in" id="code-input" type="text" placeholder="Secret code…"
+        maxlength="20" onkeydown="if(event.key==='Enter')addCode()"/>
+      <button class="btn btn-sm btn-purple" onclick="addCode()">Add</button>
+    </div>
+    <div class="badge-row" id="badge-row"></div>
+    <div class="code-hint">Hint: three secret codes exist — try words from the books</div>
+
+    <!-- Hybrid second tribe (shown only if HYBRID code entered) -->
+    <div id="hybrid-extra" style="display:none;margin-top:12px;border-top:1px solid rgba(255,255,255,.12);padding-top:12px">
+      <h3 style="margin-bottom:8px;color:#44cc88">Your Other Parent's Tribe</h3>
+      <div class="tribe-grid" id="hybrid-grid" style="max-height:200px"></div>
+    </div>
+  </div>
+
+  <div class="btn-row" style="margin-top:16px">
+    <button class="btn btn-gold" id="btn-begin" disabled onclick="beginLife()">
+      Begin Your Life →
+    </button>
+  </div>
+</div>
+
+<!-- ══ EGG ════════════════════════════════════════════════════════════════ -->
+<div id="s-egg" class="scr">
+  <div class="box" style="max-width:460px;text-align:center">
+    <div class="dots" id="egg-dots"></div>
+    <h2 id="egg-title">Your Egg</h2>
+    <p id="egg-narr"></p>
+    <button class="btn btn-gold" id="egg-btn" onclick="eggNext()">…</button>
+  </div>
+</div>
+
+<!-- ══ STORY (reused for all narrative phases) ═══════════════════════════ -->
+<div id="s-story" class="scr">
+  <div class="box box-scroll" style="max-width:520px">
+    <div id="story-chapter"></div>
+    <h2 id="story-title" style="margin-bottom:6px"></h2>
+    <div id="story-narrator"></div>
+    <p id="story-text"></p>
+    <div id="story-choices"></div>
+    <div id="story-continue" style="display:none;margin-top:10px">
+      <button class="btn btn-gold" onclick="storyAdvance()">Continue →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ WINGLET SELECTION ══════════════════════════════════════════════════ -->
+<div id="s-winglet" class="scr">
+  <div class="box" style="max-width:580px">
+    <h2>Choose Your Winglet</h2>
+    <p style="opacity:.75;margin-bottom:18px">Your winglet is your school group at Jade Mountain Academy — the dragons who will become your closest companions.</p>
+    <div class="winglet-grid" id="winglet-grid"></div>
+  </div>
+</div>
+
+<!-- ══ JOB SELECTION ══════════════════════════════════════════════════════ -->
+<div id="s-job" class="scr">
+  <div class="box" style="max-width:620px">
+    <h2>Choose Your Path</h2>
+    <p id="job-intro" style="opacity:.8;margin-bottom:18px"></p>
+    <div class="job-grid" id="job-grid"></div>
+  </div>
+</div>
+
+<!-- ══ ENDING ═════════════════════════════════════════════════════════════ -->
+<div id="s-end" class="scr">
+  <div class="box" style="max-width:540px;text-align:center">
+    <div id="end-header"></div>
+    <div style="font-size:38px;margin:12px 0" id="end-icon"></div>
+    <p id="end-sub"></p>
+    <div class="btn-row">
+      <button class="btn btn-gold" onclick="goTo('title')">Play Again</button>
+      <button class="btn btn-silver" onclick="showStats()">Your Story →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ FULL STORY RECAP ════════════════════════════════════════════════════ -->
+<div id="s-recap" class="scr">
+  <div class="box box-scroll" style="max-width:540px">
+    <h2 style="text-align:center;margin-bottom:16px">📖 The Story of <span id="recap-name"></span></h2>
+    <div id="recap-text" style="font-size:15px;line-height:1.8;opacity:.9"></div>
+    <div class="btn-row" style="margin-top:18px">
+      <button class="btn btn-gold" onclick="goTo('title')">Start Over</button>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-// ─── Tribe Data ───────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// TRIBE DATA
+// ═══════════════════════════════════════════════════════════════════════════
 
 const TRIBES = [
-  {
-    name: 'SkyWing', color: 0xdd3322, accent: 0xff8800,
-    hp: 90, atk: 18, def: 8,
-    ability: '🔥 Inferno', cd: 3, abilityDesc: 'Huge fire blast — 40 damage',
-    special() { return { dmg: 40, msg: '🔥 INFERNO!', sub: 'The sky is on fire!' }; }
-  },
-  {
-    name: 'NightWing', color: 0x2a1050, accent: 0xaa66ff,
-    hp: 85, atk: 17, def: 9,
-    ability: '🔮 Prophecy', cd: 3, abilityDesc: 'Skip enemy\'s next turn + 10 dmg',
-    special() { return { dmg: 10, msg: '🔮 PROPHECY!', sub: 'Enemy turn skipped!', skipEnemy: true }; }
-  },
-  {
-    name: 'SeaWing', color: 0x1255c0, accent: 0x44aaff,
-    hp: 100, atk: 15, def: 10,
-    ability: '🌊 Tidal Wave', cd: 3, abilityDesc: 'Heal 30 HP + deal 20 damage',
-    special() { return { dmg: 20, msg: '🌊 TIDAL WAVE!', sub: 'Restored 30 HP!', heal: 30 }; }
-  },
-  {
-    name: 'MudWing', color: 0x5a3820, accent: 0xaa7755,
-    hp: 120, atk: 14, def: 14,
-    ability: '🛡️ Fireproof', cd: 3, abilityDesc: 'Half damage for 2 turns + 12 dmg',
-    special() { return { dmg: 12, msg: '🛡️ FIREPROOF SCALES!', sub: 'Half damage for 2 turns!', shield: 2 }; }
-  },
-  {
-    name: 'SandWing', color: 0xcc9900, accent: 0xffd700,
-    hp: 85, atk: 17, def: 9,
-    ability: '☠️ Venom', cd: 3, abilityDesc: 'Poison enemy — 8 dmg × 3 turns',
-    special() { return { dmg: 12, msg: '☠️ VENOM STING!', sub: 'Enemy poisoned for 3 turns!', poison: 3 }; }
-  },
-  {
-    name: 'IceWing', color: 0xaaddff, accent: 0xffffff,
-    hp: 90, atk: 16, def: 12,
-    ability: '❄️ Ice Wall', cd: 3, abilityDesc: 'Block next attack completely + 15 dmg',
-    special() { return { dmg: 15, msg: '❄️ ICE WALL!', sub: 'Next attack blocked!', iceWall: true }; }
-  },
-  {
-    name: 'RainWing', color: 0x8844ff, accent: 0xff44aa,
-    hp: 80, atk: 19, def: 7,
-    ability: '🫥 Camouflage', cd: 3, abilityDesc: 'Dodge next attack + deal 22 dmg',
-    special() { return { dmg: 22, msg: '🫥 CAMOUFLAGE!', sub: 'Will dodge next attack!', dodge: true }; }
-  },
+  { name:'SkyWing',   color:0xdd2211, acc:0xff7700, belly:0xffcc55, eye:0xffaa00, eyeGlow:0xff5500,
+    desc:'Fast · Fierce · Fire-breathers', homeland:'the Sky Kingdom',
+    traitText:'bold and fierce', jobBonus:['Guard','Messenger','Explorer'] },
+  { name:'NightWing', color:0x160828, acc:0xccaaff, belly:0x2e1a46, eye:0xbbaaff, eyeGlow:0x7755dd,
+    desc:'Clever · Mysterious · Mind readers', homeland:'the Night Kingdom',
+    traitText:'clever and mysterious', jobBonus:['Scholar','Spy','Seer'], stars:true },
+  { name:'SeaWing',   color:0x0c3a7a, acc:0x22aaff, belly:0x1a6699, eye:0x00ffcc, eyeGlow:0x00bb88,
+    desc:'Strong · Graceful · Deep-sea swimmers', homeland:'the Sea Kingdom',
+    traitText:'graceful and strong', jobBonus:['Healer','Diplomat','Explorer'], bio:true },
+  { name:'MudWing',   color:0x6b3518, acc:0xcc9966, belly:0xaa7744, eye:0xff9900, eyeGlow:0xcc5500,
+    desc:'Tough · Loyal · Fireproof scales', homeland:'the Mud Kingdom',
+    traitText:'loyal and dependable', jobBonus:['Soldier','Farmer','Healer'] },
+  { name:'SandWing',  color:0xddbb44, acc:0xffe8aa, belly:0xffeecc, eye:0xffcc00, eyeGlow:0xcc8800,
+    desc:'Cunning · Resilient · Venom tail', homeland:'the Sand Kingdom',
+    traitText:'cunning and resilient', jobBonus:['Merchant','Spy','Politician'] },
+  { name:'IceWing',   color:0xc8e0ff, acc:0xffffff, belly:0xedf4ff, eye:0x88ccff, eyeGlow:0x44aaff,
+    desc:'Proud · Precise · Frost breath', homeland:'the Ice Kingdom',
+    traitText:'precise and proud', jobBonus:['Scholar','Aristocrat','Soldier'], crystal:true },
+  { name:'RainWing',  color:0x8844ff, acc:0xff44cc, belly:0xcc55ff, eye:0xffff44, eyeGlow:0xcccc00,
+    desc:'Relaxed · Clever · Venom spit', homeland:'the Rain Kingdom',
+    traitText:'colorful and creative', jobBonus:['Artist','Healer','Explorer'], rainbow:true },
 ];
 
-// ─── Three.js Scene ───────────────────────────────────────────────────────────
+const SECRET_CODES = { 'ANIMUS':'animus', 'HYBRID':'hybrid', 'ROYALTY':'royalty' };
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CHARACTER STATE
+// ═══════════════════════════════════════════════════════════════════════════
+
+const C = {
+  name:'', tribe:null, hybrid2:null,
+  animus:false, hybrid:false, royalty:false,
+  winglet:'', job:'', jobDesc:'',
+  choices:[], storyLog:[],
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// THREE.JS SCENE SETUP
+// ═══════════════════════════════════════════════════════════════════════════
 
 const canvas = document.getElementById('c');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
 renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x050b18, 0.018);
+scene.fog = new THREE.FogExp2(0x020810, 0.016);
 
-const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 200);
-camera.position.set(0, 3.5, 15);
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 250);
+camera.position.set(0, 3, 16);
 camera.lookAt(0, 1.5, 0);
 
-// Lighting
-scene.add(new THREE.AmbientLight(0x8898cc, 0.6));
-const sun = new THREE.DirectionalLight(0xffeedd, 1.4);
-sun.position.set(8, 14, 6); sun.castShadow = true;
+// Lights
+const hemi = new THREE.HemisphereLight(0x223355, 0x080510, 0.7);
+scene.add(hemi);
+
+const sun = new THREE.DirectionalLight(0xffeedd, 1.6);
+sun.position.set(8, 16, 6); sun.castShadow = true;
+sun.shadow.mapSize.set(1024,1024);
 scene.add(sun);
-scene.add(Object.assign(new THREE.DirectionalLight(0x4455aa, 0.35), { position: { x: -8, y: 3, z: -4, set(){} } }));
-const fillLight = new THREE.DirectionalLight(0x4455aa, 0.35);
-fillLight.position.set(-8, 3, -4);
-scene.add(fillLight);
+
+const fill = new THREE.DirectionalLight(0x4466bb, 0.4);
+fill.position.set(-10, 4, -4); scene.add(fill);
+
+const rim = new THREE.DirectionalLight(0x8866ff, 0.3);
+rim.position.set(-2, 8, -12); scene.add(rim);
 
 // Ground
-const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(120, 120),
-  new THREE.MeshPhongMaterial({ color: 0x0d1a12 })
+const gnd = new THREE.Mesh(
+  new THREE.PlaneGeometry(200,200),
+  new THREE.MeshStandardMaterial({ color:0x0c160a, roughness:1 })
 );
-ground.rotation.x = -Math.PI / 2; ground.position.y = -2.2;
-ground.receiveShadow = true;
-scene.add(ground);
+gnd.rotation.x = -Math.PI/2; gnd.position.y = -2.4; gnd.receiveShadow = true;
+scene.add(gnd);
 
 // Stars
-(function() {
-  const verts = [];
-  for (let i = 0; i < 500; i++)
-    verts.push((Math.random()-0.5)*140, Math.random()*55+8, (Math.random()-0.5)*80-10);
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
-  scene.add(new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.18 })));
+(()=>{
+  const verts=[];
+  for(let i=0;i<600;i++) verts.push((Math.random()-.5)*160,Math.random()*60+6,(Math.random()-.5)*100-10);
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));
+  scene.add(new THREE.Points(geo,new THREE.PointsMaterial({color:0xffffff,size:.16})));
 })();
 
 // Moon
-const moon = new THREE.Mesh(
-  new THREE.SphereGeometry(2.5, 16, 16),
-  new THREE.MeshBasicMaterial({ color: 0xffe8a0 })
-);
-moon.position.set(18, 28, -35); scene.add(moon);
-const moonGlow = new THREE.PointLight(0xffeedd, 0.8, 60);
-moonGlow.position.copy(moon.position); scene.add(moonGlow);
+const moonMesh = new THREE.Mesh(new THREE.SphereGeometry(2.8,20,20),
+  new THREE.MeshBasicMaterial({color:0xffe9b0}));
+moonMesh.position.set(22,30,-38); scene.add(moonMesh);
+const moonLight = new THREE.PointLight(0xffeedd,0.9,80);
+moonLight.position.copy(moonMesh.position); scene.add(moonLight);
 
 // Mountains
-function addMountain(x, z, h, r) {
-  const m = new THREE.Mesh(
-    new THREE.ConeGeometry(r, h, 6),
-    new THREE.MeshPhongMaterial({ color: 0x0a1525 })
-  );
-  m.position.set(x, h/2 - 2.2, z); scene.add(m);
+[[-36,-38,12,6],[-24,-38,14,7],[-14,-38,10,5],[0,-38,13,6],[12,-38,11,6],
+ [24,-38,14,7],[36,-38,10,5]].forEach(([x,_z,h,r])=>{
+  const m=new THREE.Mesh(new THREE.ConeGeometry(r,h,7),
+    new THREE.MeshStandardMaterial({color:0x0a1830,roughness:1}));
+  m.position.set(x,h/2-2.4,-38); scene.add(m);
+});
+
+function onResize(){
+  const w=window.innerWidth,h=window.innerHeight;
+  renderer.setSize(w,h); camera.aspect=w/h; camera.updateProjectionMatrix();
 }
-[-32,-22,-14,-6,0,8,16,24,34].forEach(x => addMountain(x, -35, 10+Math.random()*10, 5+Math.random()*5));
+window.addEventListener('resize',onResize); onResize();
 
-function onResize() {
-  const w = window.innerWidth, h = window.innerHeight;
-  renderer.setSize(w, h);
-  camera.aspect = w / h;
-  camera.updateProjectionMatrix();
+// ═══════════════════════════════════════════════════════════════════════════
+// SCENE OBJECTS (swapped per phase)
+// ═══════════════════════════════════════════════════════════════════════════
+
+let playerDragon  = null;  // player's dragon mesh
+let sceneObjects  = [];    // extra per-phase objects
+let ambientDrakes = [];    // background ambient dragons
+let eggMesh       = null;
+let eggCracks     = [];
+let jmaBuilding   = null;
+
+function clearSceneObjects(){
+  sceneObjects.forEach(o=>scene.remove(o));
+  sceneObjects=[];
 }
-window.addEventListener('resize', onResize);
-onResize();
 
-// ─── Dragon Builder ───────────────────────────────────────────────────────────
+function addSceneObj(obj){ scene.add(obj); sceneObjects.push(obj); }
 
-function buildDragon(col, acc) {
-  const g     = new THREE.Group();
-  const mMain = new THREE.MeshPhongMaterial({ color: col, shininess: 70 });
-  const mAcc  = new THREE.MeshPhongMaterial({ color: acc, shininess: 50 });
-  const mEye  = new THREE.MeshPhongMaterial({ color: 0xffee22, emissive: 0xffaa00 });
-  const mBelly= new THREE.MeshPhongMaterial({ color: acc, shininess: 30, transparent: true, opacity: 0.9 });
+// ═══════════════════════════════════════════════════════════════════════════
+// REALISTIC DRAGON BUILDER
+// ═══════════════════════════════════════════════════════════════════════════
 
-  function m(geo, mat, px, py, pz, rx, ry, rz) {
-    const mesh = new THREE.Mesh(geo, mat);
-    if (px !== undefined) mesh.position.set(px, py, pz);
-    if (rx !== undefined) mesh.rotation.set(rx, ry, rz);
-    mesh.castShadow = true;
-    g.add(mesh); return mesh;
-  }
+function matStd(color,rough=0.65,metal=0.05,emissive=0,emissInt=0){
+  return new THREE.MeshStandardMaterial({color,roughness:rough,metalness:metal,
+    emissive,emissiveIntensity:emissInt});
+}
+function matDbl(color,rough=0.75,opacity=0.84){
+  return new THREE.MeshStandardMaterial({color,roughness:rough,metalness:0,
+    side:THREE.DoubleSide,transparent:true,opacity});
+}
+function ell(sx,sy,sz,mat,px,py,pz){
+  const m=new THREE.Mesh(new THREE.SphereGeometry(1,28,20),mat);
+  m.scale.set(sx,sy,sz); m.position.set(px,py,pz); m.castShadow=true; return m;
+}
+function sph(r,mat,px,py,pz){
+  const m=new THREE.Mesh(new THREE.SphereGeometry(r,20,16),mat);
+  m.position.set(px,py,pz); m.castShadow=true; return m;
+}
+function cyl(r1,r2,h,mat,px,py,pz,rx=0,rz=0){
+  const m=new THREE.Mesh(new THREE.CylinderGeometry(r1,r2,h,10),mat);
+  m.position.set(px,py,pz); m.rotation.x=rx; m.rotation.z=rz; m.castShadow=true; return m;
+}
+function cone(r,h,mat,px,py,pz,rx=0,rz=0){
+  const m=new THREE.Mesh(new THREE.ConeGeometry(r,h,8),mat);
+  m.position.set(px,py,pz); m.rotation.x=rx; m.rotation.z=rz; m.castShadow=true; return m;
+}
 
-  // Body
-  m(new THREE.BoxGeometry(1.5, 1.0, 2.6), mMain, 0, 0, 0);
-  m(new THREE.BoxGeometry(1.1, 0.35, 2.0), mBelly, 0, -0.34, 0);
+function buildDragon(tribe, special={}, scale=1){
+  const g = new THREE.Group();
+  const t = tribe;
 
-  // Back ridges
-  for (let i = 0; i < 5; i++)
-    m(new THREE.ConeGeometry(0.07, 0.28, 5), mAcc, 0, 0.55, 0.9 - i*0.55);
+  const mBody  = matStd(t.color, 0.68, 0.04);
+  const mAcc   = matStd(t.acc,   0.55, 0.08);
+  const mBelly = matStd(t.belly, 0.75, 0);
+  const mEye   = matStd(t.eye,   0.1,  0.4, t.eyeGlow, 0.9);
+  const mPupil = matStd(0x000000, 1, 0);
+  const mDark  = matStd(0x080808, 1, 0);
+  const mWing  = matDbl(t.color, 0.82, t.name==='IceWing'?0.55:0.78);
+  const mBone  = matStd(t.acc, 0.6, 0.06);
+  const mHorn  = matStd(t.acc, 0.5, 0.1);
 
-  // Neck
-  m(new THREE.CylinderGeometry(0.3, 0.42, 0.85, 8), mMain, 0, 0.26, 1.35, -0.42, 0, 0);
+  // ── Body ────────────────────────────────────────────────────────────────
+  g.add(ell(1.25,0.82,1.95, mBody, 0,0,0));        // torso core
+  g.add(ell(1.12,0.78,1.35, mBody, 0,0.06,0.85));  // chest swell
+  g.add(ell(1.05,0.76,1.25, mBody, 0,-0.04,-0.8)); // hindquarters
+  g.add(ell(0.88,0.38,1.72, mBelly, 0,-0.44,0));   // belly underside
 
-  // Head
-  m(new THREE.BoxGeometry(0.95, 0.78, 1.05), mMain, 0, 0.7, 1.82);
+  // Shoulder blades
+  [-1,1].forEach(s=> g.add(ell(0.35,0.28,0.55, mBody, s*0.85,0.35,0.7)));
 
-  // Snout
-  m(new THREE.BoxGeometry(0.58, 0.42, 0.6), mMain, 0, 0.5, 2.38);
+  // ── Neck ────────────────────────────────────────────────────────────────
+  const nk=[
+    [0.38,[0,0.28,1.32]],[0.35,[0,0.6,1.74]],[0.31,[0,0.98,2.12]],
+    [0.28,[0,1.38,2.40]],[0.25,[0,1.72,2.56]],
+  ];
+  nk.forEach(([r,p])=>{ const s=sph(r,mBody,...p); g.add(s); });
 
-  // Nostrils
-  [-0.14, 0.14].forEach(x => m(new THREE.SphereGeometry(0.07, 6, 6), mAcc, x, 0.42, 2.68));
+  // ── Head ────────────────────────────────────────────────────────────────
+  g.add(ell(0.90,0.80,1.08, mBody, 0,1.85,2.85)); // skull
+  g.add(ell(0.62,0.54,0.92, mBody, 0,1.65,3.35)); // upper snout
+  g.add(ell(0.64,0.38,0.86, mBody, 0,1.41,3.20)); // lower jaw
+  g.add(ell(0.48,0.28,0.58, mAcc,  0,1.74,3.35)); // snout bridge (accent)
+  g.add(ell(0.30,0.14,0.28, mBelly,0,1.36,3.62)); // chin flap
 
-  // Upper jaw line
-  m(new THREE.BoxGeometry(0.92, 0.1, 1.0), mAcc, 0, 0.34, 1.82);
+  // ── Nostrils ─────────────────────────────────────────────────────────────
+  [-0.14,0.14].forEach(x=>{ g.add(sph(0.065,mDark, x,1.60,3.70)); });
 
-  // Horns
-  [-0.27, 0.27].forEach(x => {
-    const horn = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.45, 6), mAcc);
-    horn.position.set(x, 1.18, 1.76);
-    horn.rotation.z = x < 0 ? 0.32 : -0.32;
-    horn.castShadow = true; g.add(horn);
+  // ── Eyes ─────────────────────────────────────────────────────────────────
+  [-0.32,0.32].forEach(x=>{
+    g.add(sph(0.175,mDark,  x, 1.90, 3.06)); // socket
+    g.add(sph(0.145,mEye,   x, 1.90, 3.12)); // iris
+    const p=new THREE.Mesh(new THREE.SphereGeometry(0.075,8,8),mPupil);
+    p.scale.set(t.name==='NightWing'?0.5:0.45,1,0.28); // slit pupil
+    p.position.set(x,1.90,3.22); g.add(p);
   });
 
-  // Eyes
-  [-0.3, 0.3].forEach(x => m(new THREE.SphereGeometry(0.13, 8, 8), mEye, x, 0.76, 2.26));
+  // ── Tribe horns/frills ───────────────────────────────────────────────────
+  addHorns(g, t, mHorn, mAcc, mBody);
 
-  // Pupils
-  [-0.3, 0.3].forEach(x => {
-    const p = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6),
-      new THREE.MeshBasicMaterial({ color: 0x000000 }));
-    p.position.set(x, 0.76, 2.38); g.add(p);
-  });
+  // ── Dorsal spines ────────────────────────────────────────────────────────
+  addSpines(g, t, mAcc);
 
-  // Wings (left and right mirror)
-  const wShape = new THREE.Shape();
-  wShape.moveTo(0, 0);
-  wShape.lineTo(3.2, 0.4);
-  wShape.quadraticCurveTo(3.6, 1.4, 2.6, 1.8);
-  wShape.lineTo(1.6, 1.0);
-  wShape.quadraticCurveTo(1.2, 1.6, 0.5, 1.5);
-  wShape.lineTo(0, 0.6);
-  wShape.closePath();
-  const wGeo = new THREE.ShapeGeometry(wShape);
-  const wMat = new THREE.MeshPhongMaterial({ color: col, side: THREE.DoubleSide, transparent: true, opacity: 0.82, shininess: 30 });
+  // ── Wings ────────────────────────────────────────────────────────────────
+  const wings = addWings(g, t, mWing, mBone);
+  g.userData.lWing = wings.l;
+  g.userData.rWing = wings.r;
 
-  const lWing = new THREE.Mesh(wGeo, wMat);
-  lWing.position.set(-0.75, 0.3, 0.3);
-  lWing.rotation.set(0.08, -0.2, 0.18); g.add(lWing);
+  // ── Tail ─────────────────────────────────────────────────────────────────
+  addTail(g, t, mBody, mAcc);
 
-  const rWing = new THREE.Mesh(wGeo, wMat);
-  rWing.scale.x = -1;
-  rWing.position.set(0.75, 0.3, 0.3);
-  rWing.rotation.set(0.08, 0.2, -0.18); g.add(rWing);
+  // ── Legs ─────────────────────────────────────────────────────────────────
+  addLegs(g, mBody, mAcc);
 
-  // Tail (segmented)
-  [
-    { r1: 0.28, r2: 0.38, l: 0.9,  px: 0, py: -0.12, pz: -1.5,  rx: 0.35 },
-    { r1: 0.18, r2: 0.28, l: 0.85, px: 0, py: -0.44, pz: -2.26, rx: 0.55 },
-    { r1: 0.08, r2: 0.18, l: 0.75, px: 0, py: -0.85, pz: -2.94, rx: 0.65 },
-  ].forEach(s => {
-    const t = new THREE.Mesh(new THREE.CylinderGeometry(s.r1, s.r2, s.l, 8), mMain);
-    t.position.set(s.px, s.py, s.pz); t.rotation.x = s.rx;
-    t.castShadow = true; g.add(t);
-  });
-  // Tail spike
-  const spike = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.42, 6), mAcc);
-  spike.position.set(0, -1.26, -3.54); spike.rotation.x = 0.9; g.add(spike);
+  // ── Tribe special markings ───────────────────────────────────────────────
+  if(t.stars)   addStars(g);
+  if(t.bio)     addBio(g, t);
+  if(t.crystal) addCrystals(g, mAcc);
+  if(t.rainbow) addRuff(g, mBody);
 
-  // Legs
-  [[-0.58, -0.48, 0.65], [0.58, -0.48, 0.65], [-0.52, -0.48, -0.55], [0.52, -0.48, -0.55]].forEach(([x,y,z]) => {
-    m(new THREE.CylinderGeometry(0.15, 0.12, 0.88, 7), mMain, x, y, z);
-    m(new THREE.SphereGeometry(0.16, 7, 7), mAcc, x, y - 0.48, z);
-    // Toe claws
-    [-0.1, 0.1].forEach(dx => {
-      const claw = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.18, 5), mAcc);
-      claw.position.set(x + dx, y - 0.56, z + 0.12);
-      claw.rotation.x = -0.5; g.add(claw);
-    });
-  });
+  // ── Special status effects ───────────────────────────────────────────────
+  if(special.animus)  addAnimusGlow(g);
+  if(special.royalty) addCrown(g, t);
 
-  g.userData = { lWing, rWing };
+  g.scale.setScalar(scale);
   return g;
 }
 
-// ─── Ambient Scene Dragons (title / select background) ────────────────────────
-
-const ambientDragons = [];
-function spawnAmbientDragons() {
-  const colors = [0xdd3322, 0x2a1050, 0x1255c0, 0xcc9900, 0xaaddff];
-  const accents = [0xff8800, 0xaa66ff, 0x44aaff, 0xffd700, 0xffffff];
-  for (let i = 0; i < 4; i++) {
-    const d = buildDragon(colors[i % colors.length], accents[i % accents.length]);
-    d.scale.setScalar(0.5);
-    d.position.set((Math.random()-0.5)*24, 4 + Math.random()*5, -8 - Math.random()*10);
-    scene.add(d);
-    ambientDragons.push({ mesh: d, phase: Math.random()*Math.PI*2, speed: 0.3+Math.random()*0.2, radius: 6+Math.random()*5 });
+function addHorns(g,t,mHorn,mAcc,mBody){
+  if(t.name==='SkyWing'){
+    [-0.3,0.3].forEach((x,i)=>{
+      const h=cone(0.07,0.55,mHorn,x,1.08*1+1.12,2.78,0,i===0?0.28:-0.28);
+      h.rotation.x=-0.18; g.add(h);
+      // secondary small horns
+      const h2=cone(0.05,0.3,mHorn,x*1.5,1.0+1.12,2.72,0,i===0?0.55:-0.55);
+      h2.rotation.x=-0.1; g.add(h2);
+    });
+  } else if(t.name==='NightWing'){
+    [-0.28,0.28].forEach((x,i)=>{
+      const h=cone(0.065,0.48,mHorn,x,2.22,2.72,-0.15,i===0?0.22:-0.22);
+      g.add(h);
+    });
+    // fin on back of head
+    const fin=new THREE.Mesh(new THREE.ConeGeometry(0.06,0.35,5),mAcc);
+    fin.position.set(0,2.28,2.55); fin.rotation.x=-0.5; g.add(fin);
+  } else if(t.name==='SeaWing'){
+    // swept-back sea fins
+    [-0.3,0.3].forEach((x,i)=>{
+      const fin=new THREE.Mesh(new THREE.ConeGeometry(0.05,0.55,5),mAcc);
+      fin.position.set(x,2.12,2.66); fin.rotation.x=0.4;
+      fin.rotation.z=i===0?0.5:-0.5; g.add(fin);
+    });
+    // neck fin
+    const nf=new THREE.Mesh(new THREE.ConeGeometry(0.04,0.38,5),mAcc);
+    nf.position.set(0,1.58,2.45); nf.rotation.x=0.6; g.add(nf);
+  } else if(t.name==='MudWing'){
+    // short blunt horns
+    [-0.3,0.3].forEach((x,i)=>{
+      const h=new THREE.Mesh(new THREE.SphereGeometry(0.09,8,8),mAcc);
+      h.position.set(x,2.12,2.72); g.add(h);
+    });
+  } else if(t.name==='SandWing'){
+    // curved swept horns
+    [-0.28,0.28].forEach((x,i)=>{
+      const h=cone(0.06,0.52,mHorn,x,2.16,2.70,-0.3,i===0?-0.2:0.2);
+      g.add(h);
+    });
+    // forked tongue hint (tiny cone)
+    [-0.055,0.055].forEach(x=>{
+      const t=cone(0.025,0.15,mAcc,x,1.42,3.74,-0.3);
+      g.add(t);
+    });
+  } else if(t.name==='IceWing'){
+    // elegant swept-back spires
+    [-0.28,0.28].forEach((x,i)=>{
+      const h=cone(0.055,0.62,mHorn,x,2.2,2.68,-0.2,i===0?0.18:-0.18);
+      g.add(h);
+      const h2=cone(0.04,0.38,mHorn,x*1.4,2.08,2.64,-0.2,i===0?0.4:-0.4);
+      g.add(h2);
+    });
+  } else if(t.name==='RainWing'){
+    // head crest
+    for(let i=0;i<3;i++){
+      const angle=(i/2-0.5)*0.6;
+      const cr=cone(0.045,0.28+i*0.06,mAcc,Math.sin(angle)*0.22,2.22+i*0.03,2.72,-0.1,angle*0.5);
+      g.add(cr);
+    }
   }
 }
-spawnAmbientDragons();
 
-// ─── Battle State ─────────────────────────────────────────────────────────────
-
-let S = null;           // battle state
-let pMesh = null;       // player dragon mesh
-let eMesh = null;       // enemy dragon mesh
-let shakes = [];        // active shake animations
-let isPlayerTurn = true;
-const clock = new THREE.Clock();
-let T = 0;
-
-// ─── Screen Navigation ────────────────────────────────────────────────────────
-
-function gotoSelect() {
-  setScreen('select');
-  buildSelectGrid();
+function addSpines(g,t,mAcc){
+  const spineCount=t.name==='IceWing'?8:t.name==='MudWing'?4:6;
+  const heights=[];
+  for(let i=0;i<spineCount;i++) heights.push(0.14+Math.sin((i/(spineCount-1))*Math.PI)*0.18);
+  for(let i=0;i<spineCount;i++){
+    const z=0.9-i*(1.85/(spineCount-1));
+    const h=heights[i];
+    const r=t.name==='IceWing'?0.04:0.055;
+    const sp=new THREE.Mesh(new THREE.ConeGeometry(r,h+(t.name==='IceWing'?0.08:0),
+      t.name==='IceWing'?4:6), mAcc);
+    sp.position.set(0,0.7+h/2,z); sp.castShadow=true; g.add(sp);
+  }
 }
 
-function setScreen(name) {
-  ['title', 'select'].forEach(id => {
-    const el = document.getElementById('screen-' + id);
-    if (el) el.classList.toggle('active', id === name);
+function addWings(g,t,mWing,mBone){
+  function makeWing(side){
+    const s=side==='left'?1:-1;
+    const wg=new THREE.Group();
+
+    // Wing membrane
+    const shape=new THREE.Shape();
+    shape.moveTo(0,0);
+    shape.lineTo(0.4,0.55);
+    shape.bezierCurveTo(1.6,1.65,3.0,1.85,3.8,1.4);
+    shape.lineTo(4.4,0.7);
+    shape.lineTo(3.6,-0.18);
+    shape.lineTo(4.2,-0.95);
+    shape.lineTo(3.0,-1.05);
+    shape.lineTo(1.6,-0.55);
+    shape.lineTo(0.4,-0.42);
+    shape.closePath();
+    const memGeo=new THREE.ShapeGeometry(shape,14);
+    const mem=new THREE.Mesh(memGeo,mWing);
+    wg.add(mem);
+
+    // Leading edge bone
+    const leading=cyl(0.055,0.025,4.7,mBone, 2.2,0.85,0, 0, -s*0.44);
+    leading.rotation.y=s*0.12; wg.add(leading);
+
+    // Finger bones (3 shorter bones fanning from elbow)
+    [[3.5,0.55,0, 0,-s*0.62],
+     [3.4,-0.1,0, 0,-s*0.52],
+     [2.8,-0.75,0,0,-s*0.42]].forEach(([px,py,pz,rx,rz])=>{
+      const fb=cyl(0.035,0.015,2.2,mBone,px,py,pz,rx,rz);
+      fb.rotation.y=s*0.08; wg.add(fb);
+    });
+
+    // Elbow joint sphere
+    wg.add(sph(0.1,mBone,  0.38,0.52,0));
+
+    // Position wing at shoulder
+    wg.position.set(s*0.72,0.28,0.5);
+    if(side==='right') wg.scale.x=-1;
+    return wg;
+  }
+
+  const lWing=makeWing('left');
+  const rWing=makeWing('right');
+  g.add(lWing); g.add(rWing);
+  return {l:lWing, r:rWing};
+}
+
+function addTail(g,t,mBody,mAcc){
+  const segs=[
+    [0.34,0.42,1.0, [0,-0.10,-1.08],0.28],
+    [0.27,0.34,0.9, [0,-0.34,-1.88],0.42],
+    [0.20,0.27,0.85,[0,-0.62,-2.62],0.52],
+    [0.14,0.20,0.78,[0,-0.96,-3.28],0.54],
+    [0.08,0.14,0.68,[0,-1.30,-3.88],0.50],
+    [0.04,0.08,0.55,[0,-1.58,-4.38],0.44],
+  ];
+  segs.forEach(([r1,r2,l,pos,rx])=>{
+    const seg=new THREE.Mesh(new THREE.CylinderGeometry(r1,r2,l,10),mBody);
+    seg.position.set(...pos); seg.rotation.x=rx; seg.castShadow=true; g.add(seg);
+  });
+  // Tail tip — SandWing gets a barbed spike, others a point
+  if(t.name==='SandWing'){
+    const spike=cone(0.1,0.65,mAcc, 0,-1.75,-4.72,0.55);
+    g.add(spike);
+    [-0.14,0.14].forEach(x=>{
+      const barb=cone(0.05,0.25,mAcc,x,-1.66,-4.60,0.4,x<0?0.4:-0.4);
+      g.add(barb);
+    });
+  } else if(t.name==='SeaWing'){
+    // Fan tail
+    [-0.25,0,0.25].forEach(x=>{
+      const fin=new THREE.Mesh(new THREE.ConeGeometry(0.06,0.38,5),mAcc);
+      fin.position.set(x,-1.70,-4.65); fin.rotation.x=0.6; fin.rotation.z=x*0.8; g.add(fin);
+    });
+  } else {
+    const tip=cone(0.08,0.32,mAcc, 0,-1.68,-4.64,0.5);
+    g.add(tip);
+  }
+}
+
+function addLegs(g,mBody,mAcc){
+  // Front legs
+  [[-0.62,0.72],[0.62,0.72]].forEach(([x,z])=>{
+    g.add(ell(0.22,0.22,0.62,mBody, x,-0.12,z)); // upper
+    g.add(ell(0.18,0.18,0.55,mBody, x,-0.72,z+0.1)); // lower
+    g.add(ell(0.18,0.14,0.28,mBody, x,-1.15,z+0.28)); // foot
+    // Claws
+    [-0.12,0,0.12].forEach(cx=>{
+      const cl=cone(0.04,0.2,mAcc,x+cx,-1.25,z+0.46,-0.3);
+      g.add(cl);
+    });
+  });
+  // Back legs
+  [[-0.60,-0.72],[0.60,-0.72]].forEach(([x,z])=>{
+    g.add(ell(0.24,0.24,0.66,mBody, x,0.02,z));  // upper thigh
+    g.add(ell(0.19,0.19,0.58,mBody, x,-0.64,z-0.12)); // shin
+    g.add(ell(0.18,0.13,0.26,mBody, x,-1.10,z-0.28)); // foot
+    [-0.12,0,0.12].forEach(cx=>{
+      const cl=cone(0.04,0.2,mAcc,x+cx,-1.20,z-0.46,0.3);
+      g.add(cl);
+    });
   });
 }
 
-function buildSelectGrid() {
-  const grid = document.getElementById('tribe-grid');
-  grid.innerHTML = '';
-  TRIBES.forEach(t => {
-    const card = document.createElement('div');
-    card.className = 'tribe-card';
-    card.style.borderColor = '#' + t.color.toString(16).padStart(6,'0') + 'aa';
-    card.innerHTML =
-      `<div class="t-name" style="color:#${t.accent.toString(16).padStart(6,'0')}">${t.name}</div>` +
-      `<div class="t-stats">❤️ ${t.hp} HP<br>⚔️ ${t.atk} ATK  🛡️ ${t.def} DEF</div>` +
-      `<div class="t-ability">${t.ability}</div>` +
-      `<div class="t-stats" style="font-size:10px;margin-top:3px;opacity:0.55">${t.abilityDesc}</div>`;
-    card.onclick = () => startBattle(t);
+function addStars(g){
+  // NightWing star scales — tiny emissive spheres scattered on body
+  const starMat=matStd(0xddddff,0.1,0.6,0xaaaaff,1.2);
+  for(let i=0;i<40;i++){
+    const θ=Math.random()*Math.PI*2, φ=Math.random()*Math.PI;
+    const r=1.1+Math.random()*0.4;
+    const s=sph(0.025+Math.random()*0.03, starMat,
+      Math.sin(φ)*Math.cos(θ)*r*1.2,
+      Math.sin(φ)*Math.sin(θ)*0.75,
+      Math.cos(φ)*r*1.9);
+    g.add(s);
+  }
+}
+
+function addBio(g,t){
+  // SeaWing bioluminescent stripes
+  const bioMat=new THREE.MeshStandardMaterial({color:t.acc,emissive:t.acc,
+    emissiveIntensity:1.5,roughness:0.1,metalness:0});
+  [[0,0,0.8],[0,0,-0.8],[0,0.2,0],[0,-0.2,0.4]].forEach(([x,y,z])=>{
+    const stripe=cyl(0.045,0.045,1.6,bioMat,x,y,z,0);
+    stripe.material=bioMat; g.add(stripe);
+  });
+  // Bioluminescent dots along neck
+  for(let i=0;i<8;i++){
+    const dot=sph(0.04,bioMat, (Math.random()-.5)*0.3, 0.5+i*0.17, 1.4+i*0.14);
+    g.add(dot);
+  }
+}
+
+function addCrystals(g,mAcc){
+  // IceWing extra crystal spines
+  const iceMat=new THREE.MeshStandardMaterial({color:0xe0f4ff,roughness:0.05,
+    metalness:0.2,transparent:true,opacity:0.88});
+  for(let i=0;i<4;i++){
+    const cr=cone(0.05,0.28+i*0.04,iceMat, 0,0.78+(3-i)*0.1,0.6-i*0.6,-0.05);
+    g.add(cr);
+  }
+}
+
+function addRuff(g,mBody){
+  // RainWing neck frill
+  const ruffMat=new THREE.MeshStandardMaterial({color:0xff66cc,roughness:0.7,
+    metalness:0,side:THREE.DoubleSide,transparent:true,opacity:0.75});
+  for(let i=0;i<6;i++){
+    const angle=(i/5)*Math.PI-Math.PI/2;
+    const fr=new THREE.Mesh(new THREE.ConeGeometry(0.12,0.5,4),ruffMat);
+    fr.position.set(Math.cos(angle)*0.42, 1.35+Math.sin(Math.abs(angle))*0.1, 2.28);
+    fr.rotation.z=angle; g.add(fr);
+  }
+}
+
+function addAnimusGlow(g){
+  // Purple glow aura
+  const glowMat=new THREE.MeshBasicMaterial({color:0x9933ff,transparent:true,
+    opacity:0.08,side:THREE.BackSide});
+  const glow=new THREE.Mesh(new THREE.SphereGeometry(3.5,16,16),glowMat);
+  g.add(glow);
+  // Emissive rune marks on body
+  const runeMat=matStd(0xcc88ff,0.1,0.4,0xaa44ff,2.0);
+  [[0,0.2,0.8],[0,-0.1,-0.5],[0,0.4,2.8]].forEach(p=>{
+    g.add(sph(0.06,runeMat,...p));
+  });
+}
+
+function addCrown(g,t){
+  const goldMat=matStd(0xffd700,0.3,0.6,0xffaa00,0.3);
+  // Crown ring
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(0.32,0.04,8,20),goldMat);
+  ring.position.set(0,2.24,2.76); ring.rotation.x=-0.2; g.add(ring);
+  // Crown points
+  for(let i=0;i<5;i++){
+    const a=(i/5)*Math.PI*2;
+    const pt=cone(0.05,0.22,goldMat,
+      Math.cos(a)*0.30,2.38,Math.sin(a)*0.30+2.76,-0.2);
+    g.add(pt);
+  }
+  // Gem
+  const gem=sph(0.08,matStd(0xff3344,0.05,0.9,0xff1122,0.5),0,2.48,2.76);
+  g.add(gem);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// EGG BUILDER
+// ═══════════════════════════════════════════════════════════════════════════
+
+function buildEgg(tribe){
+  const g=new THREE.Group();
+  const mat=new THREE.MeshStandardMaterial({
+    color:tribe.color, roughness:0.65, metalness:0.12 });
+  const egg=new THREE.Mesh(new THREE.SphereGeometry(1.1,32,32),mat);
+  egg.scale.set(1,1.4,1); egg.castShadow=true; g.add(egg);
+
+  // Speckles
+  const speckMat=new THREE.MeshStandardMaterial({color:tribe.acc,roughness:0.8});
+  for(let i=0;i<18;i++){
+    const θ=Math.random()*Math.PI*2, φ=Math.random()*Math.PI;
+    const sp=new THREE.Mesh(new THREE.SphereGeometry(0.04+Math.random()*0.04,6,6),speckMat);
+    sp.position.set(Math.sin(φ)*Math.cos(θ)*1.12,Math.sin(φ)*Math.sin(θ)*1.54,Math.cos(φ)*1.12);
+    g.add(sp);
+  }
+  return g;
+}
+
+// Crack lines added to egg over time
+function addEggCrack(parent){
+  const lineMat=new THREE.LineBasicMaterial({color:0xffffff,opacity:0.8,transparent:true});
+  const points=[];
+  let x=(Math.random()-.5)*0.8, y=(Math.random()-.5)*1.2;
+  points.push(new THREE.Vector3(x,y,1.12));
+  for(let i=0;i<6;i++){
+    x+=(Math.random()-.5)*0.3; y+=(Math.random()-.5)*0.4;
+    points.push(new THREE.Vector3(x,y,1.1));
+  }
+  const geo=new THREE.BufferGeometry().setFromPoints(points);
+  const line=new THREE.Line(geo,lineMat);
+  parent.add(line); eggCracks.push(line);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// JMA BUILDING
+// ═══════════════════════════════════════════════════════════════════════════
+
+function buildJMA(){
+  const g=new THREE.Group();
+  const stone=new THREE.MeshStandardMaterial({color:0x7a8090,roughness:0.88,metalness:0.05});
+  const dark =new THREE.MeshStandardMaterial({color:0x3a4050,roughness:0.9});
+  const wood =new THREE.MeshStandardMaterial({color:0x5c3a1e,roughness:0.95});
+
+  // Main hall
+  g.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(14,8,7),stone),
+    {position:{x:0,y:1.6,z:-5,set(){}}}));
+  const hall=new THREE.Mesh(new THREE.BoxGeometry(14,8,7),stone);
+  hall.position.set(0,1.6,-5); g.add(hall);
+
+  // Roof
+  const roof=new THREE.Mesh(new THREE.ConeGeometry(9,4,4),dark);
+  roof.position.set(0,7.6,-5); roof.rotation.y=Math.PI/4; g.add(roof);
+
+  // Wings
+  [-7.5,7.5].forEach(x=>{
+    const wing=new THREE.Mesh(new THREE.BoxGeometry(5,6,5),stone);
+    wing.position.set(x,0.6,-5); g.add(wing);
+    const wr=new THREE.Mesh(new THREE.ConeGeometry(3.5,3,4),dark);
+    wr.position.set(x,5.1,-5); wr.rotation.y=Math.PI/4; g.add(wr);
+  });
+
+  // Door arch
+  const door=new THREE.Mesh(new THREE.BoxGeometry(2.2,3.5,0.5),dark);
+  door.position.set(0,-0.65,-1.55); g.add(door);
+
+  // Windows
+  [[4,2,-1.55],[-4,2,-1.55],[7.5,1,-4],[−7.5,1,-4]].forEach(([x,y,z])=>{
+    const w=new THREE.Mesh(new THREE.BoxGeometry(1.4,1.8,0.4),dark);
+    w.position.set(x,y,z); g.add(w);
+  });
+
+  // Mountain backdrop pillars
+  for(let i=-3;i<=3;i++){
+    const col=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.35,9,8),stone);
+    col.position.set(i*2.2,-0.5,-12); g.add(col);
+  }
+
+  g.position.set(0,0,-2);
+  return g;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AMBIENT BACKGROUND DRAGONS (title / loading screens)
+// ═══════════════════════════════════════════════════════════════════════════
+
+function spawnAmbient(){
+  const small=[TRIBES[0],TRIBES[1],TRIBES[2],TRIBES[5]];
+  small.forEach((t,i)=>{
+    const d=buildDragon(t,{},0.45);
+    d.position.set((Math.random()-.5)*28, 4+Math.random()*5, -10-Math.random()*12);
+    scene.add(d);
+    ambientDrakes.push({mesh:d,phase:i*(Math.PI/2),speed:0.22+Math.random()*.15,radius:6+i*3});
+  });
+}
+spawnAmbient();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SCREEN NAVIGATION
+// ═══════════════════════════════════════════════════════════════════════════
+
+function goTo(id){
+  document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
+  const el=document.getElementById('s-'+id);
+  if(el) el.classList.add('on');
+  setupScene(id);
+}
+
+function setupScene(id){
+  clearSceneObjects();
+  if(jmaBuilding){ scene.remove(jmaBuilding); jmaBuilding=null; }
+  if(eggMesh){ scene.remove(eggMesh); eggMesh=null; eggCracks=[]; }
+
+  if(id==='title'){
+    camera.position.set(0,3,16); camera.lookAt(0,1.5,0);
+    ambientDrakes.forEach(a=>{ scene.add(a.mesh); });
+  } else {
+    ambientDrakes.forEach(a=>{ if(a.mesh.parent) scene.remove(a.mesh); });
+  }
+
+  if(id==='create'){
+    camera.position.set(0,2,18); camera.lookAt(0,1,0);
+    spawnPreviewDragon();
+  }
+
+  if(id==='egg'){
+    camera.position.set(0,1.2,7); camera.lookAt(0,0,0);
+    eggMesh=buildEgg(C.tribe);
+    eggMesh.position.set(2,0,0);
+    scene.add(eggMesh); sceneObjects.push(eggMesh);
+  }
+
+  if(['story','winglet','job','end','recap'].includes(id) && C.tribe){
+    if(!playerDragon){
+      playerDragon=buildDragon(C.tribe,{animus:C.animus,royalty:C.royalty},1);
+      scene.add(playerDragon);
+    }
+    playerDragon.position.set(3.5,0,0);
+    playerDragon.rotation.y=-0.6;
+    camera.position.set(0,2.5,13); camera.lookAt(2,1.2,0);
+  }
+
+  if(id==='winglet'||id==='jma'){
+    jmaBuilding=buildJMA();
+    scene.add(jmaBuilding);
+    camera.position.set(-2,3,14); camera.lookAt(1,1,0);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CHARACTER CREATION UI
+// ═══════════════════════════════════════════════════════════════════════════
+
+let previewDragon=null;
+let selectedTribeIdx=-1;
+let selectedHybridIdx=-1;
+const activeCodes=new Set();
+
+function spawnPreviewDragon(){
+  if(previewDragon){ scene.remove(previewDragon); previewDragon=null; }
+  if(selectedTribeIdx<0) return;
+  const t=TRIBES[selectedTribeIdx];
+  previewDragon=buildDragon(t,{animus:activeCodes.has('animus'),royalty:activeCodes.has('royalty')},1);
+  previewDragon.position.set(3.5,0,0);
+  previewDragon.rotation.y=-0.7;
+  scene.add(previewDragon);
+}
+
+function buildSelectGrid(){
+  buildTribeGrid('tribe-grid', idx=>{
+    document.querySelectorAll('#tribe-grid .tcard').forEach(c=>c.classList.remove('sel'));
+    document.querySelectorAll('#tribe-grid .tcard')[idx].classList.add('sel');
+    selectedTribeIdx=idx;
+    spawnPreviewDragon();
+    checkCreateReady();
+  });
+  buildTribeGrid('hybrid-grid', idx=>{
+    document.querySelectorAll('#hybrid-grid .tcard').forEach(c=>c.classList.remove('sel'));
+    document.querySelectorAll('#hybrid-grid .tcard')[idx].classList.add('sel');
+    selectedHybridIdx=idx;
+    checkCreateReady();
+  });
+}
+
+function buildTribeGrid(containerId, onSelect){
+  const grid=document.getElementById(containerId);
+  grid.innerHTML='';
+  TRIBES.forEach((t,i)=>{
+    const card=document.createElement('div');
+    card.className='tcard';
+    card.style.borderColor='#'+t.color.toString(16).padStart(6,'0')+'99';
+    card.innerHTML=`<div class="tname" style="color:#${t.acc.toString(16).padStart(6,'0')}">${t.name}</div>
+      <div class="tstats">${t.desc}</div>`;
+    card.onclick=()=>onSelect(i);
     grid.appendChild(card);
   });
 }
 
-// ─── Battle Start ─────────────────────────────────────────────────────────────
+function addCode(){
+  const inp=document.getElementById('code-input');
+  const val=inp.value.trim().toUpperCase();
+  if(!val) return;
+  inp.value='';
+  const key=SECRET_CODES[val];
+  if(!key){ flashInput(inp,'#ff4444'); return; }
+  if(activeCodes.has(key)){ flashInput(inp,'#ffaa00'); return; }
+  activeCodes.add(key);
+  renderBadges();
+  if(key==='hybrid') document.getElementById('hybrid-extra').style.display='block';
+  spawnPreviewDragon();
+  checkCreateReady();
+  flashInput(inp,'#44cc88');
+}
 
-function startBattle(playerTribe) {
-  setScreen(null); // hide all screens
+function removeCode(key){
+  activeCodes.delete(key);
+  if(key==='hybrid'){ document.getElementById('hybrid-extra').style.display='none'; selectedHybridIdx=-1; }
+  renderBadges();
+  spawnPreviewDragon();
+  checkCreateReady();
+}
 
-  const pool = TRIBES.filter(t => t.name !== playerTribe.name);
-  const enemyTribe = pool[Math.floor(Math.random() * pool.length)];
+function chooseNormal(){
+  activeCodes.clear(); renderBadges();
+  document.getElementById('hybrid-extra').style.display='none';
+  selectedHybridIdx=-1;
+  spawnPreviewDragon();
+  checkCreateReady();
+}
 
-  // Clear old battle dragons
-  if (pMesh) { scene.remove(pMesh); pMesh = null; }
-  if (eMesh) { scene.remove(eMesh); eMesh = null; }
+function renderBadges(){
+  const row=document.getElementById('badge-row');
+  row.innerHTML='';
+  activeCodes.forEach(k=>{
+    const labels={animus:'✨ Animus',hybrid:'🌿 Hybrid',royalty:'👑 Royalty'};
+    row.innerHTML+=`<span class="badge badge-${k}">${labels[k]}<span class="x" onclick="removeCode('${k}')">×</span></span>`;
+  });
+}
 
-  pMesh = buildDragon(playerTribe.color, playerTribe.accent);
-  pMesh.position.set(-5, 0, 3);
-  pMesh.rotation.y = Math.PI * 0.18;
-  scene.add(pMesh);
+function flashInput(el,col){
+  el.style.borderColor=col;
+  setTimeout(()=>el.style.borderColor='',600);
+}
 
-  eMesh = buildDragon(enemyTribe.color, enemyTribe.accent);
-  eMesh.position.set(5, 0, 3);
-  eMesh.rotation.y = -Math.PI * 0.18;
-  scene.add(eMesh);
+function checkCreateReady(){
+  const name=document.getElementById('dragon-name').value.trim();
+  const tribeOk=selectedTribeIdx>=0;
+  const hybridOk=!activeCodes.has('hybrid')||selectedHybridIdx>=0;
+  document.getElementById('btn-begin').disabled=!(name&&tribeOk&&hybridOk);
+}
 
-  S = {
-    pt: playerTribe,  et: enemyTribe,
-    php: playerTribe.hp, phMax: playerTribe.hp,
-    ehp: enemyTribe.hp,  ehMax: enemyTribe.hp,
-    pCd: 0, eCd: 0,
-    pShield: 0, ePoison: 0,
-    pDodge: false, pIceWall: false, skipEnemy: false,
+function beginLife(){
+  C.name=document.getElementById('dragon-name').value.trim();
+  C.tribe=TRIBES[selectedTribeIdx];
+  C.hybrid2=activeCodes.has('hybrid')&&selectedHybridIdx>=0?TRIBES[selectedHybridIdx]:null;
+  C.animus=activeCodes.has('animus');
+  C.hybrid=activeCodes.has('hybrid');
+  C.royalty=activeCodes.has('royalty');
+  C.choices=[]; C.storyLog=[];
+
+  if(previewDragon){ scene.remove(previewDragon); previewDragon=null; }
+  playerDragon=buildDragon(C.tribe,{animus:C.animus,royalty:C.royalty},1);
+  scene.add(playerDragon);
+
+  updateStatusBar();
+  startEggPhase();
+}
+
+function updateStatusBar(){
+  const sb=document.getElementById('statusbar');
+  if(!C.tribe){ sb.style.display='none'; return; }
+  sb.style.display='flex';
+  let badges=`<span style="color:#${C.tribe.acc.toString(16).padStart(6,'0')}">${C.tribe.name}</span>`;
+  if(C.animus)  badges+=`<span class="badge badge-animus" style="padding:2px 8px">Animus</span>`;
+  if(C.hybrid&&C.hybrid2) badges+=`<span class="badge badge-hybrid" style="padding:2px 8px">Hybrid/${C.hybrid2.name}</span>`;
+  if(C.royalty) badges+=`<span class="badge badge-royalty" style="padding:2px 8px">Royalty</span>`;
+  sb.innerHTML=`<strong style="opacity:.6;font-size:13px">${C.name}</strong> ${badges}`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// EGG PHASE
+// ═══════════════════════════════════════════════════════════════════════════
+
+let eggStep=0;
+const EGG_STEPS=[
+  { title:'Your Egg', btn:'Tap…',
+    text:()=>`Deep in ${C.tribe.homeland}, a ${C.tribe.name} egg rests in a warm nest. It is ${
+      C.hybrid?`unusual — one side shimmers ${C.tribe.name} ${C.tribe.color < 0x888888 ? 'dark' : 'bright'} and the other side is ${C.hybrid2.name} ${C.hybrid2.color < 0x888888 ? 'dark' : 'bright'}` :
+      `beautifully ${C.tribe.name}-colored`}. ${C.royalty?'It bears the royal family's crest — a perfect emblem pressed into the shell.':''}`
+  },
+  { title:'Something Stirs', btn:'It moves…', crackNow:true,
+    text:()=>`A tiny sound — tap, tap, tap — comes from inside. The egg shivers. A hairline crack races across the surface. Then another. Something inside is fighting to get out.`
+  },
+  { title:'Almost There', btn:'Hatch!', crackNow:true,
+    text:()=>`The cracks spread and glow. A tiny snout pushes through. Then a claw. Then two glowing eyes — ${C.tribe.name} eyes — blink open for the very first time. The world is enormous.`
+  },
+];
+
+function startEggPhase(){
+  eggStep=0;
+  goTo('egg');
+  renderEggStep();
+}
+
+function renderEggStep(){
+  const step=EGG_STEPS[eggStep];
+  document.getElementById('egg-title').textContent=step.title;
+  document.getElementById('egg-narr').textContent=step.text();
+  document.getElementById('egg-btn').textContent=step.btn;
+  buildProgressDots('egg-dots',3,eggStep);
+  if(step.crackNow&&eggMesh) addEggCrack(eggMesh);
+}
+
+function eggNext(){
+  eggStep++;
+  if(eggStep>=EGG_STEPS.length){ startDragonetPhase(); return; }
+  renderEggStep();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STORY PHASE ENGINE
+// ═══════════════════════════════════════════════════════════════════════════
+
+let storyQueue=[];
+let storyQueueIdx=0;
+
+function runStory(chapters, onFinish){
+  storyQueue=chapters;
+  storyQueueIdx=0;
+  storyQueue._onFinish=onFinish;
+  goTo('story');
+  renderStoryChapter();
+}
+
+function renderStoryChapter(){
+  const ch=storyQueue[storyQueueIdx];
+  if(!ch){ storyQueue._onFinish&&storyQueue._onFinish(); return; }
+
+  document.getElementById('story-chapter').textContent=ch.chapter||'';
+  document.getElementById('story-title').textContent=ch.title||'';
+  document.getElementById('story-narrator').textContent=ch.narrator||'';
+  document.getElementById('story-text').textContent=typeof ch.text==='function'?ch.text():ch.text||'';
+
+  const cont=document.getElementById('story-continue');
+  const choiceDiv=document.getElementById('story-choices');
+  choiceDiv.innerHTML='';
+  cont.style.display='none';
+
+  if(ch.choices&&ch.choices.length){
+    ch.choices.forEach(opt=>{
+      const btn=document.createElement('button');
+      btn.className='choice-btn';
+      btn.textContent=opt.label;
+      btn.onclick=()=>{
+        C.choices.push(opt.label);
+        if(opt.log) C.storyLog.push(opt.log);
+        if(opt.effect) opt.effect();
+        choiceDiv.querySelectorAll('.choice-btn').forEach(b=>b.disabled=true);
+        btn.style.borderColor='#ffd700'; btn.style.background='rgba(255,220,80,.15)';
+        setTimeout(()=>{ storyQueueIdx++; renderStoryChapter(); }, 500);
+      };
+      choiceDiv.appendChild(btn);
+    });
+  } else {
+    cont.style.display='block';
+  }
+}
+
+function storyAdvance(){
+  storyQueueIdx++;
+  renderStoryChapter();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DRAGONET PHASE
+// ═══════════════════════════════════════════════════════════════════════════
+
+function startDragonetPhase(){
+  const hybridLine=C.hybrid&&C.hybrid2
+    ? ` Your mother was a ${C.tribe.name} and your father was a ${C.hybrid2.name} — you carry both bloodlines, a rare and powerful inheritance.`
+    : '';
+  const animusLine=C.animus
+    ? ` Even as a newborn dragonet, objects seem to move when you look at them too long. You might be an animus.` : '';
+  const royaltyLine=C.royalty
+    ? ` The clan mothers press their snouts to your forehead and bow low. You are of royal blood.` : '';
+
+  runStory([
+    { chapter:'Chapter I — The Hatching', title:`Welcome, ${C.name}`,
+      text:()=>`You tumble from your egg into the bright light of ${C.tribe.homeland}. You are a ${C.tribe.name} dragonet.${hybridLine}${animusLine}${royaltyLine} Everything is huge and wonderful and terrifying.` },
+    { chapter:'Chapter I — The Hatching', title:'Your First Choice',
+      narrator:'Your parent nudges you gently.',
+      text:'The nest is cozy and warm. But sunlight filters in from outside and something amazing might be just beyond. What do you do first?',
+      choices:[
+        { label:'🌿 Explore! I scramble outside immediately.',
+          log:'Explored early — curious and brave.',
+          effect:()=>{ C.choices.push('explorer-heart'); } },
+        { label:'📖 I curl up and listen to the elders talk.',
+          log:'Listened to elders — scholarly heart.',
+          effect:()=>{ C.choices.push('scholar-heart'); } },
+        { label:'🐾 I stay close to my parent and watch everything.',
+          log:'Stayed close — loyal and observant.',
+          effect:()=>{ C.choices.push('guardian-heart'); } },
+      ]
+    },
+  ], startJMAPhase);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// JADE MOUNTAIN ACADEMY
+// ═══════════════════════════════════════════════════════════════════════════
+
+const WINGLETS=[
+  { name:'Jade Winglet',   icon:'🌿', color:'#44bb66',
+    desc:'Adventurous and brave. Famous for saving Pyrrhia.', trait:'brave' },
+  { name:'Gold Winglet',   icon:'✨', color:'#ffcc00',
+    desc:'Curious scholars who love history and secrets.', trait:'scholar' },
+  { name:'Silver Winglet', icon:'🌙', color:'#aabbee',
+    desc:'Artists, dreamers, and visionaries.', trait:'creative' },
+  { name:'Copper Winglet', icon:'🛡️', color:'#cc7744',
+    desc:'Loyal protectors and natural leaders.', trait:'leader' },
+  { name:'Quartz Winglet', icon:'💎', color:'#dd88cc',
+    desc:'Diplomats and peacemakers.', trait:'diplomat' },
+];
+
+function startJMAPhase(){
+  runStory([
+    { chapter:'Chapter II — Jade Mountain', title:'The Academy',
+      text:()=>`Years pass in a blur of growing scales and first flights. Now, at last, you stand at the entrance to Jade Mountain Academy — the school where dragons of all tribes study together. A great carved tunnel leads into the mountain. Dragonets of every tribe pass you, talking and laughing.` },
+    { chapter:'Chapter II — Jade Mountain', title:'The Welcome',
+      narrator:'Headmistress Starflight addresses the newcomers.',
+      text:()=>`"Welcome to Jade Mountain Academy," says a blind NightWing with silver-flecked scales. "Here you will learn alongside dragons from every corner of Pyrrhia. You will be assigned to a winglet — your core study group and closest companions. But first: tell me why you came."${
+        C.royalty?' A ripple moves through the crowd — someone has recognized your royal markings.':''}`,
+      choices:[
+        { label:'"I came to learn everything I can."',
+          log:'Motivated by knowledge.' },
+        { label:'"I want to make friends across all tribes."',
+          log:'Motivated by connection.' },
+        { label:'"I need to understand my special abilities."',
+          log:'Motivated by self-discovery.',
+          effect:()=>{ if(!C.animus&&!C.hybrid) C.choices.push('self-discoverer'); } },
+      ]
+    },
+  ], ()=>startWingletSelection());
+}
+
+function startWingletSelection(){
+  goTo('winglet');
+  const grid=document.getElementById('winglet-grid');
+  grid.innerHTML='';
+  WINGLETS.forEach(w=>{
+    const card=document.createElement('div');
+    card.className='wcard';
+    card.innerHTML=`<div class="wcard-name" style="color:${w.color}">${w.icon} ${w.name}</div>
+      <div class="wcard-desc">${w.desc}</div>`;
+    card.onclick=()=>{
+      C.winglet=w.name;
+      C.storyLog.push(`Joined the ${w.name}.`);
+      startAcademyLife();
+    };
+    grid.appendChild(card);
+  });
+}
+
+function startAcademyLife(){
+  const winglet=WINGLETS.find(w=>w.name===C.winglet)||WINGLETS[0];
+  const clawmate=TRIBES.filter(t=>t.name!==C.tribe.name)[Math.floor(Math.random()*6)];
+
+  const animusEvent=C.animus ? [{
+    chapter:'Chapter III — Academy Life', title:'The Accident',
+    narrator:'During art class, something unexpected happens.',
+    text:()=>`You are painting a mural when your brush slips. You whisper, "Go back up" — and the brush floats back into your claws by itself. Everyone stops. Silence. Then your ${clawmate.name} clawmate ${clawmate.name==='NightWing'?'reads the shock in your mind and':'} whispers: "Was that… enchantment?"`,
+    choices:[
+      { label:'"I — I don\'t know what that was."',
+        log:'Hid animus power initially.' },
+      { label:'"Yes. I think I\'m an animus."',
+        log:'Revealed animus power openly.' },
+      { label:'I pretend it was an accident and change the subject.',
+        log:'Concealed animus power carefully.' },
+    ]
+  }] : [];
+
+  const hybridEvent=C.hybrid&&C.hybrid2 ? [{
+    chapter:'Chapter III — Academy Life', title:'Between Two Worlds',
+    narrator:'At dinner, a group of students talk louder than they should.',
+    text:()=>`You overhear a ${C.tribe.name} student saying "${C.tribe.name}s and ${C.hybrid2.name}s don't mix — that's just how it is." Your clawmate, the ${clawmate.name}, catches your eye across the table.`,
+    choices:[
+      { label:'"Actually, they do. I\'m proof."',
+        log:'Stood up for hybrid identity.' },
+      { label:'I fly to a quiet spot on the mountain alone.',
+        log:'Retreated from conflict — processing alone.' },
+      { label:'I ask my clawmate what they think.',
+        log:'Sought a friend\'s perspective.' },
+    ]
+  }] : [];
+
+  const royaltyEvent=C.royalty ? [{
+    chapter:'Chapter III — Academy Life', title:'A Royal Problem',
+    narrator:'A scroll arrives for you.',
+    text:()=>`A messenger arrives bearing the royal seal. "${C.name} — your presence is requested at the palace for the Succession Council." You haven't even passed your first exam yet. Your clawmate leans over: "What does it say?"`,
+    choices:[
+      { label:'"Nothing important. I\'m staying to finish school."',
+        log:'Prioritized education over royal duty.' },
+      { label:'"I have to go back. Duty calls."',
+        log:'Answered royal duty.' },
+      { label:'"I\'ll write back and ask for more time."',
+        log:'Negotiated — balanced both worlds.' },
+    ]
+  }] : [];
+
+  runStory([
+    { chapter:'Chapter III — Academy Life', title:`The ${C.winglet}`,
+      text:()=>`You are assigned to the ${C.winglet}. Your clawmate is a ${clawmate.name} named ${randomDragonName(clawmate)} — quiet and watchful at first, but after a single afternoon of classes together, you can already tell you'll be friends.` },
+    { chapter:'Chapter III — Academy Life', title:'First Test',
+      narrator:'Professor Tsunami paces in front of the class.',
+      text:`The history scroll is enormous, the history of all seven tribes spread across ten thousand years. The test is tomorrow. How do you prepare?`,
+      choices:[
+        { label:'📖 Study all night alone.',
+          log:'Disciplined solo study.' },
+        { label:'🤝 Form a study group with your winglet.',
+          log:'Collaborative learning.' },
+        { label:'🧩 Find creative ways to memorize everything.',
+          log:'Creative approach to learning.' },
+      ]
+    },
+    ...animusEvent,
+    ...hybridEvent,
+    ...royaltyEvent,
+    { chapter:'Chapter III — Academy Life', title:'Conflict at the Mountain',
+      narrator:'On a rainy night, the academy echoes with raised voices.',
+      text:`A fight breaks out between two students from tribes that have been at war. Scales flash, tails lash. Everyone is watching. What do you do?`,
+      choices:[
+        { label:'⚡ Step between them and demand they stop.',
+          log:'Showed leadership and courage.' },
+        { label:'📣 Run to get a teacher.',
+          log:'Followed proper channels.' },
+        { label:'🕊️ Speak calmly to each dragon separately.',
+          log:'Used diplomacy and empathy.' },
+        { label:'🔍 Watch carefully to understand what started it.',
+          log:'Observed before acting.' },
+      ]
+    },
+    { chapter:'Chapter III — Academy Life', title:'Graduation',
+      text:()=>`Three years pass. You stand on the mountain ledge with your winglet as the sun sets over Pyrrhia. You have learned history, healing, combat theory, ${C.animus?'animus ethics, ':''} architecture, diplomacy, and more than you can count. Starflight addresses the graduates: "Go. Make the world better."` },
+  ], startJobPhase);
+}
+
+function randomDragonName(tribe){
+  const names={
+    SkyWing:['Osprey','Crimson','Flame','Scarlet'],
+    NightWing:['Moonwatcher','Starfall','Darksky','Eclipse'],
+    SeaWing:['Turtle','Reef','Tide','Current'],
+    MudWing:['Reed','Clay','Marsh','Silt'],
+    SandWing:['Dune','Cactus','Sandstorm','Umber'],
+    IceWing:['Snowfall','Frost','Crystal','Glacier'],
+    RainWing:['Kinkajou','Papaya','Siamang','Loris'],
   };
-
-  document.getElementById('p-name').textContent = playerTribe.name;
-  document.getElementById('e-name').textContent = enemyTribe.name;
-  updateBars();
-
-  show('hud'); show('log-box'); show('actions'); show('turn-banner');
-  setLog(`⚔️ Battle vs ${enemyTribe.name}!`, 'Choose your action');
-  beginPlayerTurn();
+  const list=names[tribe.name]||['River'];
+  return list[Math.floor(Math.random()*list.length)];
 }
 
-// ─── Battle UI Helpers ────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// JOB PHASE
+// ═══════════════════════════════════════════════════════════════════════════
 
-function show(id) { document.getElementById(id).style.display = id === 'actions' ? 'flex' : 'block'; }
-function hide(id) { document.getElementById(id).style.display = 'none'; }
+const ALL_JOBS=[
+  { name:'Scholar',       icon:'📚', desc:'Study history and teach the next generation at Jade Mountain.',
+    tags:['scholar-heart','Listened to elders','gold'] },
+  { name:'Explorer',      icon:'🗺️', desc:'Map uncharted parts of Pyrrhia and discover hidden wonders.',
+    tags:['explorer-heart','Explored early','jade','silver'] },
+  { name:'Healer',        icon:'🌿', desc:'Master herb lore and save lives across all seven kingdoms.',
+    tags:['MudWing','SeaWing','quartz'] },
+  { name:'Diplomat',      icon:'🕊️', desc:'Broker peace between kingdoms and settle tribal disputes.',
+    tags:['diplomacy','Quartz','Used diplomacy','diplomat','scholar'] },
+  { name:'Royal Advisor', icon:'👑', desc:'Counsel the queen and guide your kingdom's future.',
+    unlock:'royalty' },
+  { name:'Animus Enchanter', icon:'✨', desc:'Create powerful enchanted objects to help your tribe.',
+    unlock:'animus' },
+  { name:'Artist',        icon:'🎨', desc:'Paint murals, compose ballads, and inspire all of Pyrrhia.',
+    tags:['creative','silver','RainWing','creative approach'] },
+  { name:'Soldier/Guard', icon:'🛡️', desc:'Protect your tribe and keep the peace at Jade Mountain.',
+    tags:['guardian-heart','Stepped between','copper','Showed leadership','SkyWing','MudWing'] },
+  { name:'Teacher',       icon:'🏫', desc:'Return to Jade Mountain Academy and shape young minds.',
+    tags:['scholar','gold','quartz'] },
+  { name:'Spy/Messenger', icon:'🌑', desc:'Work in the shadows, carrying vital secrets between kingdoms.',
+    tags:['NightWing','SandWing','Concealed','self-discoverer'] },
+  { name:'Farmer/Herbalist', icon:'🌱', desc:'Grow food and plants that feed whole tribes.',
+    tags:['MudWing','guardian-heart'] },
+  { name:'Merchant',      icon:'💰', desc:'Trade goods across Pyrrhia, growing rich and influential.',
+    tags:['SandWing','Negotiated'] },
+];
 
-function updateBars() {
-  const pp = Math.max(0, S.php / S.phMax * 100);
-  const ep = Math.max(0, S.ehp / S.ehMax * 100);
-  document.getElementById('p-bar').style.width = pp + '%';
-  document.getElementById('e-bar').style.width = ep + '%';
-  document.getElementById('p-hp').textContent = Math.max(0, S.php);
-  document.getElementById('e-hp').textContent = Math.max(0, S.ehp);
+function startJobPhase(){
+  goTo('job');
+
+  const relevant=getRelevantJobs();
+  document.getElementById('job-intro').textContent=
+    `You have graduated from Jade Mountain Academy. The whole of Pyrrhia stretches before you, ${C.name}. What will you do with your life?`;
+
+  const grid=document.getElementById('job-grid');
+  grid.innerHTML='';
+  relevant.forEach(job=>{
+    const card=document.createElement('div');
+    card.className='jcard';
+    card.innerHTML=`<div class="jcard-icon">${job.icon}</div>
+      <div class="jcard-name">${job.name}</div>
+      <div class="jcard-desc">${job.desc}</div>`;
+    card.onclick=()=>{
+      C.job=job.name;
+      C.jobDesc=job.desc;
+      C.storyLog.push(`Became a ${job.name}.`);
+      startEnding();
+    };
+    grid.appendChild(card);
+  });
 }
 
-function setLog(main, sub) {
-  document.getElementById('log-main').textContent = main;
-  document.getElementById('log-sub').textContent = sub || '';
-}
+function getRelevantJobs(){
+  const always=['Explorer','Scholar','Healer','Soldier/Guard','Artist','Teacher'];
+  let picks=[];
 
-function setActionsEnabled(on) {
-  document.querySelectorAll('#actions button').forEach(b => { b.disabled = !on; });
-  if (on) refreshSpecialButton();
-}
-
-function refreshSpecialButton() {
-  const btn = document.getElementById('btn-spc');
-  const lbl = document.getElementById('cd-label');
-  if (S.pCd > 0) {
-    btn.disabled = true;
-    lbl.textContent = `(${S.pCd} turn${S.pCd > 1 ? 's' : ''})`;
-  } else {
-    btn.disabled = false;
-    lbl.textContent = '';
-  }
-}
-
-function beginPlayerTurn() {
-  isPlayerTurn = true;
-  const banner = document.getElementById('turn-banner');
-  banner.textContent = '⚔️ Your Turn!';
-  banner.style.color = '#06d6a0';
-  setActionsEnabled(true);
-  setLog('Your turn', 'Attack, use your Special, or Defend');
-}
-
-function beginEnemyTurn() {
-  isPlayerTurn = false;
-  const banner = document.getElementById('turn-banner');
-  banner.textContent = `💀 ${S.et.name}'s Turn…`;
-  banner.style.color = '#e84040';
-  setActionsEnabled(false);
-  setTimeout(enemyAct, 1100);
-}
-
-// ─── Combat ───────────────────────────────────────────────────────────────────
-
-function roll(atk, def) {
-  const base = Math.max(1, Math.round(atk * 10 / (10 + def)));
-  const v = Math.max(1, Math.round(base * 0.22));
-  return base + Math.floor(Math.random() * (v * 2 + 1)) - v;
-}
-
-function act(action) {
-  if (!isPlayerTurn) return;
-  setActionsEnabled(false);
-
-  let dmg = 0, msg, sub;
-
-  if (action === 'attack') {
-    dmg = roll(S.pt.atk, S.et.def);
-    msg = `⚔️ ${S.pt.name} attacks!`;
-    sub = `-${dmg} HP`;
-
-  } else if (action === 'special') {
-    const fx = S.pt.special();
-    dmg = fx.dmg;
-    msg = fx.msg;
-    sub = fx.sub;
-    S.pCd = S.pt.cd;
-    if (fx.skipEnemy) S.skipEnemy = true;
-    if (fx.heal)      S.php = Math.min(S.phMax, S.php + fx.heal);
-    if (fx.shield)    S.pShield += fx.shield;
-    if (fx.poison)    S.ePoison = fx.poison;
-    if (fx.iceWall)   S.pIceWall = true;
-    if (fx.dodge)     S.pDodge = true;
-
-  } else { // defend
-    S.pShield += 1;
-    dmg = Math.floor(roll(S.pt.atk, S.et.def) * 0.45);
-    msg = `🛡️ ${S.pt.name} braces for impact!`;
-    sub = 'Reduced attack + shield next hit';
-  }
-
-  S.ehp -= dmg;
-  if (S.pCd > 0 && action !== 'special') S.pCd = Math.max(0, S.pCd - 1);
-  setLog(msg, sub);
-  updateBars();
-  shakeTarget(eMesh, 0.38);
-
-  if (checkEnd()) return;
-
-  if (S.skipEnemy) {
-    S.skipEnemy = false;
-    setLog(`🔮 ${S.et.name} is bound by prophecy!`, 'Enemy turn skipped!');
-    setTimeout(beginPlayerTurn, 1400);
-  } else {
-    setTimeout(beginEnemyTurn, 700);
-  }
-}
-
-function enemyAct() {
-  // Poison tick
-  if (S.ePoison > 0) {
-    const pd = 8;
-    S.ehp -= pd;
-    S.ePoison--;
-    setLog(`☠️ Poison damages ${S.et.name}!`, `-${pd} HP · ${S.ePoison} turns left`);
-    updateBars();
-    shakeTarget(eMesh, 0.2);
-    if (checkEnd()) return;
-  }
-
-  setTimeout(() => {
-    const useSpecial = S.eCd === 0 && (S.ehp < S.ehMax * 0.45 || Math.random() < 0.22);
-    let dmg, msg, sub;
-
-    if (useSpecial) {
-      dmg = Math.round(roll(S.et.atk, S.pt.def) * 1.9);
-      msg = `💀 ${S.et.name}: ${S.et.ability}!`;
-      sub = `-${dmg} HP — super move!`;
-      S.eCd = S.et.cd;
-    } else {
-      dmg = roll(S.et.atk, S.pt.def);
-      msg = `💀 ${S.et.name} attacks!`;
-      sub = `-${dmg} HP`;
-      if (S.eCd > 0) S.eCd--;
-    }
-
-    // Resolve player defenses
-    if (S.pDodge) {
-      S.pDodge = false;
-      msg = `🫥 ${S.pt.name} vanishes — dodge!`; sub = 'No damage!'; dmg = 0;
-    } else if (S.pIceWall) {
-      S.pIceWall = false;
-      msg = `❄️ Ice Wall shatters the attack!`; sub = 'No damage!'; dmg = 0;
-    } else if (S.pShield > 0) {
-      dmg = Math.floor(dmg / 2);
-      sub = `Half damage! -${dmg} HP`; S.pShield--;
-    }
-
-    S.php -= dmg;
-    setLog(msg, sub);
-    updateBars();
-    if (dmg > 0) shakeTarget(pMesh, 0.38);
-
-    if (checkEnd()) return;
-    if (S.pCd > 0) S.pCd--;
-    setTimeout(beginPlayerTurn, 700);
-  }, 700);
-}
-
-function checkEnd() {
-  if (S.ehp <= 0) { endBattle(true);  return true; }
-  if (S.php <= 0) { endBattle(false); return true; }
-  return false;
-}
-
-function endBattle(won) {
-  ['hud','actions','log-box','turn-banner'].forEach(hide);
-  const rs = document.getElementById('screen-result');
-  document.getElementById('result-title').textContent = won ? '🏆 Victory!' : '💀 Defeated!';
-  document.getElementById('result-title').style.color  = won ? '#ffd700' : '#e84040';
-  document.getElementById('result-body').textContent   = won
-    ? `Your ${S.pt.name} defeated the ${S.et.name}!`
-    : `Your ${S.pt.name} was defeated by the ${S.et.name}…`;
-  rs.classList.add('active');
-}
-
-function restart() {
-  document.getElementById('screen-result').classList.remove('active');
-  if (pMesh) { scene.remove(pMesh); pMesh = null; }
-  if (eMesh) { scene.remove(eMesh); eMesh = null; }
-  gotoSelect();
-}
-
-// ─── Shake Effect ─────────────────────────────────────────────────────────────
-
-function shakeTarget(obj, intensity) {
-  if (obj) shakes.push({ obj, t: 0, intensity, baseX: obj.position.x });
-}
-
-// ─── Main Animation Loop ──────────────────────────────────────────────────────
-
-function animate() {
-  requestAnimationFrame(animate);
-  const dt = Math.min(clock.getDelta(), 0.05);
-  T += dt;
-
-  // Ambient background dragons
-  ambientDragons.forEach(ad => {
-    const a = T * ad.speed + ad.phase;
-    ad.mesh.position.x = Math.sin(a) * ad.radius;
-    ad.mesh.position.y = 5 + Math.sin(a * 1.3) * 2;
-    ad.mesh.position.z = -10 + Math.cos(a * 0.7) * 4;
-    ad.mesh.rotation.y = Math.atan2(Math.cos(a) * ad.radius, -Math.sin(a * 0.7) * 4);
-    flapWings(ad.mesh, ad.phase);
+  // Always-available jobs
+  always.forEach(name=>{
+    const j=ALL_JOBS.find(j=>j.name===name);
+    if(j) picks.push(j);
   });
 
-  // Battle dragons
-  if (pMesh) {
-    pMesh.position.y = Math.sin(T * 0.85) * 0.14;
-    flapWings(pMesh, 0);
+  // Unlock-based
+  if(C.animus)  picks.unshift(ALL_JOBS.find(j=>j.unlock==='animus'));
+  if(C.royalty) picks.unshift(ALL_JOBS.find(j=>j.unlock==='royalty'));
+
+  // Choice-boosted (move matching jobs to top)
+  const choiceStr=C.choices.join(' ').toLowerCase();
+  ALL_JOBS.forEach(j=>{
+    if(picks.includes(j)) return;
+    if(j.tags&&j.tags.some(tag=>choiceStr.includes(tag.toLowerCase()))){
+      picks.splice(2,0,j);
+    }
+  });
+
+  // Tribe-specific
+  const tribeBonuses=C.tribe.jobBonus||[];
+  tribeBonuses.forEach(name=>{
+    const j=ALL_JOBS.find(j=>j.name===name);
+    if(j&&!picks.includes(j)) picks.push(j);
+  });
+
+  // Deduplicate and limit to 6-8
+  const seen=new Set();
+  return picks.filter(j=>j&&!seen.has(j.name)&&seen.add(j.name)).slice(0,8);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ENDING
+// ═══════════════════════════════════════════════════════════════════════════
+
+const JOB_ENDINGS={
+  'Scholar':       { icon:'📚', text:(n,t)=>`${n} became one of Pyrrhia's most celebrated historians, filling the great library at Jade Mountain with scrolls of recovered knowledge. Young dragonets traveled from every kingdom to read their work.` },
+  'Explorer':      { icon:'🗺️', text:(n,t)=>`${n} mapped the last blank corners of Pyrrhia and beyond, discovering three islands that no dragon had named before. The maps still hang in the Academy.` },
+  'Healer':        { icon:'🌿', text:(n,t)=>`${n} traveled every kingdom, learning herb lore from elders of all tribes. Their clinic became neutral ground — a place where any dragon could come, regardless of tribe or politics.` },
+  'Diplomat':      { icon:'🕊️', text:(n,t)=>`${n} brokered the Jade Mountain Accord — the first peace treaty signed by all seven queens at once. They say the ink on the scroll still glows gold.` },
+  'Royal Advisor': { icon:'👑', text:(n,t)=>`${n} stood at the queen's right claw for thirty years, steering the kingdom through two wars and one terrible drought. Generations of royals sought their counsel.` },
+  'Animus Enchanter':{ icon:'✨', text:(n,t)=>`${n} used their animus powers carefully and sparingly — one great enchantment to heal a poisoned river, one to protect the Academy. They wrote a code of ethics that animus dragons still follow.` },
+  'Artist':        { icon:'🎨', text:(n,t)=>`${n}'s murals cover the walls of Jade Mountain's great hall. Their ballads are sung at every Brightest Night festival. Even rival tribes agree their work is beautiful.` },
+  'Soldier/Guard': { icon:'🛡️', text:(n,t)=>`${n} rose to command the Jade Mountain Guard, a force of dragons from every tribe who kept peace without taking sides. No battle came to the Academy while they watched.` },
+  'Teacher':       { icon:'🏫', text:(n,t)=>`${n} returned to Jade Mountain as a professor. Their class — "History of the Dragonet Prophecy" — always had a waiting list. Many of their students went on to change the world.` },
+  'Spy/Messenger': { icon:'🌑', text:(n,t)=>`${n} worked unseen between kingdoms for decades, passing information that stopped three wars before they started. Very few knew their name. That was exactly how they liked it.` },
+  'Farmer/Herbalist':{ icon:'🌱', text:(n,t)=>`${n} built the Mudwing Delta Gardens — a sprawling farm that fed dragons from five kingdoms during the Long Drought. Their kindness became legend.` },
+  'Merchant':      { icon:'💰', text:(n,t)=>`${n} built a trading network across all seven kingdoms. Their ships carried not just goods but also books, art, and peace — one deal at a time.` },
+};
+
+function startEnding(){
+  goTo('end');
+  const ending=JOB_ENDINGS[C.job]||{icon:'🐉',text:(n,t)=>`${n} lived a remarkable life as a ${t.traitText} ${t.name}.`};
+  document.getElementById('end-header').textContent=`${C.name}'s Story`;
+  document.getElementById('end-icon').textContent=ending.icon;
+  const statusLine=[
+    C.animus?'an animus dragon':null,
+    C.hybrid&&C.hybrid2?`a ${C.tribe.name}/${C.hybrid2.name} hybrid`:null,
+    C.royalty?'of royal blood':null,
+  ].filter(Boolean);
+  const statusStr=statusLine.length?` — ${statusLine.join(', ')} —`:'';
+  document.getElementById('end-sub').textContent=
+    `${ending.text(C.name,C.tribe)} A ${C.tribe.name}${statusStr} who made Pyrrhia a little better.`;
+}
+
+function showStats(){
+  goTo('recap');
+  document.getElementById('recap-name').textContent=C.name;
+  const lines=[
+    `Tribe: ${C.tribe.name}${C.hybrid&&C.hybrid2?' (Hybrid — '+C.hybrid2.name+')':''}`,
+    C.animus?'Status: Animus Dragon':'',
+    C.royalty?'Status: Royalty':'',
+    `Winglet: ${C.winglet||'—'}`,
+    `Career: ${C.job||'—'}`,
+    '',
+    '— Choices Made —',
+    ...C.storyLog.map(l=>`• ${l}`),
+  ].filter(l=>l!==undefined);
+  document.getElementById('recap-text').innerHTML=lines.map(l=>l?`<div>${l}</div>`:'<br>').join('');
+  goTo('recap');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════════════
+
+function buildProgressDots(containerId, total, current){
+  const el=document.getElementById(containerId);
+  if(!el) return;
+  el.innerHTML='';
+  for(let i=0;i<total;i++){
+    const d=document.createElement('div');
+    d.className='dot'+(i<current?' done':i===current?' now':'');
+    el.appendChild(d);
   }
-  if (eMesh) {
-    eMesh.position.y = Math.sin(T * 0.85 + 1.4) * 0.14;
-    flapWings(eMesh, 1.4);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INIT & ANIMATION LOOP
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Build tribe selection grids
+buildSelectGrid();
+
+// Title → create setup
+function goToCreate(){
+  goTo('create');
+}
+
+const clock=new THREE.Clock();
+let T=0;
+
+function flapWings(dragon,offset){
+  const ud=dragon.userData;
+  const f=Math.sin(T*2.1+offset)*0.26;
+  if(ud.lWing) ud.lWing.rotation.z= 0.18+f;
+  if(ud.rWing) ud.rWing.rotation.z=-0.18-f;
+}
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=Math.min(clock.getDelta(),.05);
+  T+=dt;
+
+  // Ambient title dragons
+  ambientDrakes.forEach(ad=>{
+    if(!ad.mesh.parent) return;
+    const a=T*ad.speed+ad.phase;
+    ad.mesh.position.x=Math.sin(a)*ad.radius;
+    ad.mesh.position.y=4+Math.sin(a*1.3)*2;
+    ad.mesh.position.z=-10+Math.cos(a*.7)*4;
+    ad.mesh.rotation.y=Math.atan2(Math.cos(a)*ad.radius, -Math.sin(a*.7)*4);
+    flapWings(ad.mesh,ad.phase);
+  });
+
+  // Player dragon idle
+  if(playerDragon&&playerDragon.parent){
+    playerDragon.position.y=Math.sin(T*.85)*.15;
+    playerDragon.rotation.y=-0.6+Math.sin(T*.3)*.08;
+    flapWings(playerDragon,0);
+  }
+
+  // Preview dragon on create screen
+  if(previewDragon&&previewDragon.parent){
+    previewDragon.rotation.y+=dt*0.55;
+    flapWings(previewDragon,0.5);
+  }
+
+  // Egg wobble
+  if(eggMesh&&eggMesh.parent){
+    eggMesh.rotation.z=Math.sin(T*1.8)*.06;
+    if(eggCracks.length>0) eggMesh.rotation.z=Math.sin(T*3.5)*.1;
   }
 
   // RainWing color cycling
-  [{ mesh: pMesh, tribe: S?.pt }, { mesh: eMesh, tribe: S?.et }].forEach(({ mesh, tribe }) => {
-    if (!mesh || tribe?.name !== 'RainWing') return;
-    const hue = (T * 0.25) % 1;
-    mesh.traverse(c => {
-      if (c.isMesh && c.material && !c.material.emissive) {
-        c.material.color.setHSL(hue, 0.92, 0.52);
+  if(C.tribe&&C.tribe.rainbow&&playerDragon&&playerDragon.parent){
+    const hue=(T*.2)%1;
+    playerDragon.traverse(c=>{
+      if(c.isMesh&&c.material&&c.material.emissiveIntensity===undefined){
+        c.material.color.setHSL(hue,.9,.5);
       }
     });
-  });
-
-  // Shakes
-  for (let i = shakes.length - 1; i >= 0; i--) {
-    const s = shakes[i];
-    s.t += dt;
-    if (s.t > 0.32) {
-      s.obj.position.x = s.baseX;
-      shakes.splice(i, 1);
-    } else {
-      s.obj.position.x = s.baseX + Math.sin(s.t * 65) * s.intensity * (1 - s.t / 0.32);
-    }
   }
 
-  renderer.render(scene, camera);
-}
+  // NightWing animus glow pulse
+  if(C.animus&&playerDragon&&playerDragon.parent){
+    playerDragon.traverse(c=>{
+      if(c.isMesh&&c.material&&c.material.emissiveIntensity>.5){
+        c.material.emissiveIntensity=0.8+Math.sin(T*2.2)*.4;
+      }
+    });
+  }
 
-function flapWings(dragon, offset) {
-  const ud = dragon.userData;
-  const f = Math.sin(T * 2.2 + offset) * 0.28;
-  if (ud.lWing) ud.lWing.rotation.z =  0.18 + f;
-  if (ud.rWing) ud.rWing.rotation.z = -0.18 - f;
+  renderer.render(scene,camera);
 }
 
 animate();
