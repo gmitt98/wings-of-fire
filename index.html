@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Wings of Fire — Dragon Battle</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; overflow: hidden; width: 100%; height: 100%;
+    background: #050b18; font-family: "Trebuchet MS", "Segoe UI", sans-serif; color: #fff;
+  }
+  canvas { display: block; position: fixed; top: 0; left: 0; z-index: 0; }
+
+  /* ── Overlay layers ─────────────────────────── */
+  .screen {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 10;
+  }
+  .screen.active { display: flex; }
+
+  /* ── Title screen ───────────────────────────── */
+  #screen-title { background: rgba(5,11,24,0.55); }
+  #screen-title h1 {
+    font-size: clamp(36px, 7vw, 72px); margin: 0 0 6px; text-align: center; line-height: 1.1;
+    background: linear-gradient(90deg, #ff6030, #ffcc00, #ffe870, #60e8ff, #c080ff);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: none; letter-spacing: 2px;
+  }
+  #screen-title .tagline { font-size: 20px; opacity: 0.8; margin-bottom: 44px; text-align: center; }
+  .btn-gold {
+    padding: 14px 40px; font-size: 20px; font-family: inherit; font-weight: bold;
+    border: none; border-radius: 14px; cursor: pointer;
+    background: linear-gradient(135deg, #ffd700, #ff8c00); color: #1a0800;
+    box-shadow: 0 4px 20px rgba(255,180,0,0.5); transition: transform 0.12s, box-shadow 0.12s;
+  }
+  .btn-gold:hover { transform: scale(1.06); box-shadow: 0 6px 28px rgba(255,180,0,0.7); }
+
+  /* ── Tribe select screen ────────────────────── */
+  #screen-select { background: rgba(5,11,24,0.72); }
+  #screen-select h2 {
+    font-size: clamp(24px, 4vw, 38px); margin: 0 0 6px; text-align: center;
+    color: #ffe870; text-shadow: 0 0 20px rgba(255,220,50,0.4);
+  }
+  #screen-select .hint { font-size: 15px; opacity: 0.65; margin-bottom: 28px; }
+  .tribe-grid {
+    display: flex; flex-wrap: wrap; gap: 12px;
+    justify-content: center; max-width: 860px; padding: 0 16px;
+    max-height: 70vh; overflow-y: auto;
+  }
+  .tribe-card {
+    background: rgba(255,255,255,0.07); border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 14px; padding: 14px 16px; cursor: pointer; text-align: center;
+    width: 112px; transition: transform 0.18s, border-color 0.18s, background 0.18s;
+    user-select: none;
+  }
+  .tribe-card:hover {
+    transform: translateY(-6px) scale(1.04);
+    background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.5);
+  }
+  .tribe-card .t-name { font-size: 15px; font-weight: bold; margin-bottom: 5px; }
+  .tribe-card .t-stats { font-size: 12px; opacity: 0.7; line-height: 1.5; }
+  .tribe-card .t-ability { font-size: 11px; color: #ffd700; margin-top: 5px; }
+
+  /* ── Battle HUD ─────────────────────────────── */
+  #hud {
+    position: fixed; top: 0; left: 0; right: 0; padding: 14px 20px 10px;
+    display: none; z-index: 20; pointer-events: none;
+    background: linear-gradient(to bottom, rgba(5,11,24,0.9) 80%, transparent);
+  }
+  .hud-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .hud-name { font-size: 16px; font-weight: bold; width: 110px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hud-bar-outer {
+    flex: 1; height: 20px; background: rgba(0,0,0,0.55);
+    border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.18);
+  }
+  .hud-bar-inner {
+    height: 100%; border-radius: 10px;
+    background: linear-gradient(90deg, #e84040, #ff6b35);
+    transition: width 0.45s ease;
+  }
+  .hud-bar-inner.player-bar {
+    background: linear-gradient(90deg, #06d6a0, #118ab2);
+  }
+  .hud-hp { font-size: 15px; width: 52px; text-align: right; }
+
+  /* ── Turn banner ────────────────────────────── */
+  #turn-banner {
+    position: fixed; top: 90px; left: 50%; transform: translateX(-50%);
+    font-size: 20px; font-weight: bold; text-align: center;
+    display: none; z-index: 20; text-shadow: 0 2px 8px rgba(0,0,0,0.9);
+    pointer-events: none;
+  }
+
+  /* ── Battle log ─────────────────────────────── */
+  #log-box {
+    position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%);
+    width: min(520px, 92vw); text-align: center;
+    display: none; z-index: 20; pointer-events: none;
+  }
+  #log-main {
+    font-size: clamp(17px, 3vw, 22px); font-weight: bold;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.9); min-height: 28px;
+  }
+  #log-sub { font-size: 14px; opacity: 0.75; margin-top: 4px; min-height: 20px; }
+
+  /* ── Action buttons ─────────────────────────── */
+  #actions {
+    position: fixed; bottom: 0; left: 0; right: 0; padding: 14px;
+    display: none; justify-content: center; gap: 12px; z-index: 20;
+    background: linear-gradient(to top, rgba(5,11,24,0.92) 85%, transparent);
+  }
+  #actions button {
+    padding: 11px 22px; font-size: 16px; font-family: inherit; font-weight: bold;
+    border: none; border-radius: 12px; cursor: pointer;
+    transition: transform 0.12s, box-shadow 0.12s; min-width: 100px;
+  }
+  #actions button:hover:not(:disabled) { transform: scale(1.07); }
+  #actions button:disabled { opacity: 0.38; cursor: not-allowed; transform: none; }
+  .btn-atk { background: linear-gradient(135deg,#e84040,#c02020); color: #fff; box-shadow: 0 3px 14px rgba(232,64,64,0.45); }
+  .btn-spc { background: linear-gradient(135deg,#ffd700,#ff8c00); color: #1a0800; box-shadow: 0 3px 14px rgba(255,180,0,0.45); }
+  .btn-def { background: linear-gradient(135deg,#4080ff,#2050cc); color: #fff; box-shadow: 0 3px 14px rgba(64,128,255,0.45); }
+  #cd-label { display: block; font-size: 11px; font-weight: normal; margin-top: 2px; opacity: 0.85; }
+
+  /* ── Result overlay ─────────────────────────── */
+  #screen-result {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(5,11,24,0.82); z-index: 50;
+  }
+  #screen-result.active { display: flex; }
+  #result-title { font-size: clamp(52px, 10vw, 88px); font-weight: bold; margin-bottom: 12px; }
+  #result-body  { font-size: 20px; opacity: 0.85; margin-bottom: 38px; text-align: center; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<!-- Title -->
+<div id="screen-title" class="screen active">
+  <h1>Wings of Fire</h1>
+  <div class="tagline">A Dragon Battle Adventure</div>
+  <button class="btn-gold" onclick="gotoSelect()">Choose Your Dragon →</button>
+</div>
+
+<!-- Tribe Select -->
+<div id="screen-select" class="screen">
+  <h2>Choose Your Tribe</h2>
+  <div class="hint">Each tribe has a unique special ability</div>
+  <div class="tribe-grid" id="tribe-grid"></div>
+</div>
+
+<!-- Battle HUD -->
+<div id="hud">
+  <div class="hud-row">
+    <div class="hud-name" id="p-name">SkyWing</div>
+    <div class="hud-bar-outer"><div class="hud-bar-inner player-bar" id="p-bar" style="width:100%"></div></div>
+    <div class="hud-hp" id="p-hp">90</div>
+  </div>
+  <div class="hud-row">
+    <div class="hud-name" id="e-name">NightWing</div>
+    <div class="hud-bar-outer"><div class="hud-bar-inner" id="e-bar" style="width:100%"></div></div>
+    <div class="hud-hp" id="e-hp">85</div>
+  </div>
+</div>
+
+<div id="turn-banner"></div>
+
+<div id="log-box">
+  <div id="log-main"></div>
+  <div id="log-sub"></div>
+</div>
+
+<div id="actions">
+  <button class="btn-atk" onclick="act('attack')">⚔️ Attack</button>
+  <button class="btn-spc" id="btn-spc" onclick="act('special')">
+    ✨ Special<span id="cd-label"></span>
+  </button>
+  <button class="btn-def" onclick="act('defend')">🛡️ Defend</button>
+</div>
+
+<!-- Result -->
+<div id="screen-result">
+  <div id="result-title"></div>
+  <div id="result-body"></div>
+  <button class="btn-gold" onclick="restart()">Play Again</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ─── Tribe Data ───────────────────────────────────────────────────────────────
+
+const TRIBES = [
+  {
+    name: 'SkyWing', color: 0xdd3322, accent: 0xff8800,
+    hp: 90, atk: 18, def: 8,
+    ability: '🔥 Inferno', cd: 3, abilityDesc: 'Huge fire blast — 40 damage',
+    special() { return { dmg: 40, msg: '🔥 INFERNO!', sub: 'The sky is on fire!' }; }
+  },
+  {
+    name: 'NightWing', color: 0x2a1050, accent: 0xaa66ff,
+    hp: 85, atk: 17, def: 9,
+    ability: '🔮 Prophecy', cd: 3, abilityDesc: 'Skip enemy\'s next turn + 10 dmg',
+    special() { return { dmg: 10, msg: '🔮 PROPHECY!', sub: 'Enemy turn skipped!', skipEnemy: true }; }
+  },
+  {
+    name: 'SeaWing', color: 0x1255c0, accent: 0x44aaff,
+    hp: 100, atk: 15, def: 10,
+    ability: '🌊 Tidal Wave', cd: 3, abilityDesc: 'Heal 30 HP + deal 20 damage',
+    special() { return { dmg: 20, msg: '🌊 TIDAL WAVE!', sub: 'Restored 30 HP!', heal: 30 }; }
+  },
+  {
+    name: 'MudWing', color: 0x5a3820, accent: 0xaa7755,
+    hp: 120, atk: 14, def: 14,
+    ability: '🛡️ Fireproof', cd: 3, abilityDesc: 'Half damage for 2 turns + 12 dmg',
+    special() { return { dmg: 12, msg: '🛡️ FIREPROOF SCALES!', sub: 'Half damage for 2 turns!', shield: 2 }; }
+  },
+  {
+    name: 'SandWing', color: 0xcc9900, accent: 0xffd700,
+    hp: 85, atk: 17, def: 9,
+    ability: '☠️ Venom', cd: 3, abilityDesc: 'Poison enemy — 8 dmg × 3 turns',
+    special() { return { dmg: 12, msg: '☠️ VENOM STING!', sub: 'Enemy poisoned for 3 turns!', poison: 3 }; }
+  },
+  {
+    name: 'IceWing', color: 0xaaddff, accent: 0xffffff,
+    hp: 90, atk: 16, def: 12,
+    ability: '❄️ Ice Wall', cd: 3, abilityDesc: 'Block next attack completely + 15 dmg',
+    special() { return { dmg: 15, msg: '❄️ ICE WALL!', sub: 'Next attack blocked!', iceWall: true }; }
+  },
+  {
+    name: 'RainWing', color: 0x8844ff, accent: 0xff44aa,
+    hp: 80, atk: 19, def: 7,
+    ability: '🫥 Camouflage', cd: 3, abilityDesc: 'Dodge next attack + deal 22 dmg',
+    special() { return { dmg: 22, msg: '🫥 CAMOUFLAGE!', sub: 'Will dodge next attack!', dodge: true }; }
+  },
+];
+
+// ─── Three.js Scene ───────────────────────────────────────────────────────────
+
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x050b18, 0.018);
+
+const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 200);
+camera.position.set(0, 3.5, 15);
+camera.lookAt(0, 1.5, 0);
+
+// Lighting
+scene.add(new THREE.AmbientLight(0x8898cc, 0.6));
+const sun = new THREE.DirectionalLight(0xffeedd, 1.4);
+sun.position.set(8, 14, 6); sun.castShadow = true;
+scene.add(sun);
+scene.add(Object.assign(new THREE.DirectionalLight(0x4455aa, 0.35), { position: { x: -8, y: 3, z: -4, set(){} } }));
+const fillLight = new THREE.DirectionalLight(0x4455aa, 0.35);
+fillLight.position.set(-8, 3, -4);
+scene.add(fillLight);
+
+// Ground
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(120, 120),
+  new THREE.MeshPhongMaterial({ color: 0x0d1a12 })
+);
+ground.rotation.x = -Math.PI / 2; ground.position.y = -2.2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// Stars
+(function() {
+  const verts = [];
+  for (let i = 0; i < 500; i++)
+    verts.push((Math.random()-0.5)*140, Math.random()*55+8, (Math.random()-0.5)*80-10);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  scene.add(new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.18 })));
+})();
+
+// Moon
+const moon = new THREE.Mesh(
+  new THREE.SphereGeometry(2.5, 16, 16),
+  new THREE.MeshBasicMaterial({ color: 0xffe8a0 })
+);
+moon.position.set(18, 28, -35); scene.add(moon);
+const moonGlow = new THREE.PointLight(0xffeedd, 0.8, 60);
+moonGlow.position.copy(moon.position); scene.add(moonGlow);
+
+// Mountains
+function addMountain(x, z, h, r) {
+  const m = new THREE.Mesh(
+    new THREE.ConeGeometry(r, h, 6),
+    new THREE.MeshPhongMaterial({ color: 0x0a1525 })
+  );
+  m.position.set(x, h/2 - 2.2, z); scene.add(m);
+}
+[-32,-22,-14,-6,0,8,16,24,34].forEach(x => addMountain(x, -35, 10+Math.random()*10, 5+Math.random()*5));
+
+function onResize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', onResize);
+onResize();
+
+// ─── Dragon Builder ───────────────────────────────────────────────────────────
+
+function buildDragon(col, acc) {
+  const g     = new THREE.Group();
+  const mMain = new THREE.MeshPhongMaterial({ color: col, shininess: 70 });
+  const mAcc  = new THREE.MeshPhongMaterial({ color: acc, shininess: 50 });
+  const mEye  = new THREE.MeshPhongMaterial({ color: 0xffee22, emissive: 0xffaa00 });
+  const mBelly= new THREE.MeshPhongMaterial({ color: acc, shininess: 30, transparent: true, opacity: 0.9 });
+
+  function m(geo, mat, px, py, pz, rx, ry, rz) {
+    const mesh = new THREE.Mesh(geo, mat);
+    if (px !== undefined) mesh.position.set(px, py, pz);
+    if (rx !== undefined) mesh.rotation.set(rx, ry, rz);
+    mesh.castShadow = true;
+    g.add(mesh); return mesh;
+  }
+
+  // Body
+  m(new THREE.BoxGeometry(1.5, 1.0, 2.6), mMain, 0, 0, 0);
+  m(new THREE.BoxGeometry(1.1, 0.35, 2.0), mBelly, 0, -0.34, 0);
+
+  // Back ridges
+  for (let i = 0; i < 5; i++)
+    m(new THREE.ConeGeometry(0.07, 0.28, 5), mAcc, 0, 0.55, 0.9 - i*0.55);
+
+  // Neck
+  m(new THREE.CylinderGeometry(0.3, 0.42, 0.85, 8), mMain, 0, 0.26, 1.35, -0.42, 0, 0);
+
+  // Head
+  m(new THREE.BoxGeometry(0.95, 0.78, 1.05), mMain, 0, 0.7, 1.82);
+
+  // Snout
+  m(new THREE.BoxGeometry(0.58, 0.42, 0.6), mMain, 0, 0.5, 2.38);
+
+  // Nostrils
+  [-0.14, 0.14].forEach(x => m(new THREE.SphereGeometry(0.07, 6, 6), mAcc, x, 0.42, 2.68));
+
+  // Upper jaw line
+  m(new THREE.BoxGeometry(0.92, 0.1, 1.0), mAcc, 0, 0.34, 1.82);
+
+  // Horns
+  [-0.27, 0.27].forEach(x => {
+    const horn = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.45, 6), mAcc);
+    horn.position.set(x, 1.18, 1.76);
+    horn.rotation.z = x < 0 ? 0.32 : -0.32;
+    horn.castShadow = true; g.add(horn);
+  });
+
+  // Eyes
+  [-0.3, 0.3].forEach(x => m(new THREE.SphereGeometry(0.13, 8, 8), mEye, x, 0.76, 2.26));
+
+  // Pupils
+  [-0.3, 0.3].forEach(x => {
+    const p = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6),
+      new THREE.MeshBasicMaterial({ color: 0x000000 }));
+    p.position.set(x, 0.76, 2.38); g.add(p);
+  });
+
+  // Wings (left and right mirror)
+  const wShape = new THREE.Shape();
+  wShape.moveTo(0, 0);
+  wShape.lineTo(3.2, 0.4);
+  wShape.quadraticCurveTo(3.6, 1.4, 2.6, 1.8);
+  wShape.lineTo(1.6, 1.0);
+  wShape.quadraticCurveTo(1.2, 1.6, 0.5, 1.5);
+  wShape.lineTo(0, 0.6);
+  wShape.closePath();
+  const wGeo = new THREE.ShapeGeometry(wShape);
+  const wMat = new THREE.MeshPhongMaterial({ color: col, side: THREE.DoubleSide, transparent: true, opacity: 0.82, shininess: 30 });
+
+  const lWing = new THREE.Mesh(wGeo, wMat);
+  lWing.position.set(-0.75, 0.3, 0.3);
+  lWing.rotation.set(0.08, -0.2, 0.18); g.add(lWing);
+
+  const rWing = new THREE.Mesh(wGeo, wMat);
+  rWing.scale.x = -1;
+  rWing.position.set(0.75, 0.3, 0.3);
+  rWing.rotation.set(0.08, 0.2, -0.18); g.add(rWing);
+
+  // Tail (segmented)
+  [
+    { r1: 0.28, r2: 0.38, l: 0.9,  px: 0, py: -0.12, pz: -1.5,  rx: 0.35 },
+    { r1: 0.18, r2: 0.28, l: 0.85, px: 0, py: -0.44, pz: -2.26, rx: 0.55 },
+    { r1: 0.08, r2: 0.18, l: 0.75, px: 0, py: -0.85, pz: -2.94, rx: 0.65 },
+  ].forEach(s => {
+    const t = new THREE.Mesh(new THREE.CylinderGeometry(s.r1, s.r2, s.l, 8), mMain);
+    t.position.set(s.px, s.py, s.pz); t.rotation.x = s.rx;
+    t.castShadow = true; g.add(t);
+  });
+  // Tail spike
+  const spike = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.42, 6), mAcc);
+  spike.position.set(0, -1.26, -3.54); spike.rotation.x = 0.9; g.add(spike);
+
+  // Legs
+  [[-0.58, -0.48, 0.65], [0.58, -0.48, 0.65], [-0.52, -0.48, -0.55], [0.52, -0.48, -0.55]].forEach(([x,y,z]) => {
+    m(new THREE.CylinderGeometry(0.15, 0.12, 0.88, 7), mMain, x, y, z);
+    m(new THREE.SphereGeometry(0.16, 7, 7), mAcc, x, y - 0.48, z);
+    // Toe claws
+    [-0.1, 0.1].forEach(dx => {
+      const claw = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.18, 5), mAcc);
+      claw.position.set(x + dx, y - 0.56, z + 0.12);
+      claw.rotation.x = -0.5; g.add(claw);
+    });
+  });
+
+  g.userData = { lWing, rWing };
+  return g;
+}
+
+// ─── Ambient Scene Dragons (title / select background) ────────────────────────
+
+const ambientDragons = [];
+function spawnAmbientDragons() {
+  const colors = [0xdd3322, 0x2a1050, 0x1255c0, 0xcc9900, 0xaaddff];
+  const accents = [0xff8800, 0xaa66ff, 0x44aaff, 0xffd700, 0xffffff];
+  for (let i = 0; i < 4; i++) {
+    const d = buildDragon(colors[i % colors.length], accents[i % accents.length]);
+    d.scale.setScalar(0.5);
+    d.position.set((Math.random()-0.5)*24, 4 + Math.random()*5, -8 - Math.random()*10);
+    scene.add(d);
+    ambientDragons.push({ mesh: d, phase: Math.random()*Math.PI*2, speed: 0.3+Math.random()*0.2, radius: 6+Math.random()*5 });
+  }
+}
+spawnAmbientDragons();
+
+// ─── Battle State ─────────────────────────────────────────────────────────────
+
+let S = null;           // battle state
+let pMesh = null;       // player dragon mesh
+let eMesh = null;       // enemy dragon mesh
+let shakes = [];        // active shake animations
+let isPlayerTurn = true;
+const clock = new THREE.Clock();
+let T = 0;
+
+// ─── Screen Navigation ────────────────────────────────────────────────────────
+
+function gotoSelect() {
+  setScreen('select');
+  buildSelectGrid();
+}
+
+function setScreen(name) {
+  ['title', 'select'].forEach(id => {
+    const el = document.getElementById('screen-' + id);
+    if (el) el.classList.toggle('active', id === name);
+  });
+}
+
+function buildSelectGrid() {
+  const grid = document.getElementById('tribe-grid');
+  grid.innerHTML = '';
+  TRIBES.forEach(t => {
+    const card = document.createElement('div');
+    card.className = 'tribe-card';
+    card.style.borderColor = '#' + t.color.toString(16).padStart(6,'0') + 'aa';
+    card.innerHTML =
+      `<div class="t-name" style="color:#${t.accent.toString(16).padStart(6,'0')}">${t.name}</div>` +
+      `<div class="t-stats">❤️ ${t.hp} HP<br>⚔️ ${t.atk} ATK  🛡️ ${t.def} DEF</div>` +
+      `<div class="t-ability">${t.ability}</div>` +
+      `<div class="t-stats" style="font-size:10px;margin-top:3px;opacity:0.55">${t.abilityDesc}</div>`;
+    card.onclick = () => startBattle(t);
+    grid.appendChild(card);
+  });
+}
+
+// ─── Battle Start ─────────────────────────────────────────────────────────────
+
+function startBattle(playerTribe) {
+  setScreen(null); // hide all screens
+
+  const pool = TRIBES.filter(t => t.name !== playerTribe.name);
+  const enemyTribe = pool[Math.floor(Math.random() * pool.length)];
+
+  // Clear old battle dragons
+  if (pMesh) { scene.remove(pMesh); pMesh = null; }
+  if (eMesh) { scene.remove(eMesh); eMesh = null; }
+
+  pMesh = buildDragon(playerTribe.color, playerTribe.accent);
+  pMesh.position.set(-5, 0, 3);
+  pMesh.rotation.y = Math.PI * 0.18;
+  scene.add(pMesh);
+
+  eMesh = buildDragon(enemyTribe.color, enemyTribe.accent);
+  eMesh.position.set(5, 0, 3);
+  eMesh.rotation.y = -Math.PI * 0.18;
+  scene.add(eMesh);
+
+  S = {
+    pt: playerTribe,  et: enemyTribe,
+    php: playerTribe.hp, phMax: playerTribe.hp,
+    ehp: enemyTribe.hp,  ehMax: enemyTribe.hp,
+    pCd: 0, eCd: 0,
+    pShield: 0, ePoison: 0,
+    pDodge: false, pIceWall: false, skipEnemy: false,
+  };
+
+  document.getElementById('p-name').textContent = playerTribe.name;
+  document.getElementById('e-name').textContent = enemyTribe.name;
+  updateBars();
+
+  show('hud'); show('log-box'); show('actions'); show('turn-banner');
+  setLog(`⚔️ Battle vs ${enemyTribe.name}!`, 'Choose your action');
+  beginPlayerTurn();
+}
+
+// ─── Battle UI Helpers ────────────────────────────────────────────────────────
+
+function show(id) { document.getElementById(id).style.display = id === 'actions' ? 'flex' : 'block'; }
+function hide(id) { document.getElementById(id).style.display = 'none'; }
+
+function updateBars() {
+  const pp = Math.max(0, S.php / S.phMax * 100);
+  const ep = Math.max(0, S.ehp / S.ehMax * 100);
+  document.getElementById('p-bar').style.width = pp + '%';
+  document.getElementById('e-bar').style.width = ep + '%';
+  document.getElementById('p-hp').textContent = Math.max(0, S.php);
+  document.getElementById('e-hp').textContent = Math.max(0, S.ehp);
+}
+
+function setLog(main, sub) {
+  document.getElementById('log-main').textContent = main;
+  document.getElementById('log-sub').textContent = sub || '';
+}
+
+function setActionsEnabled(on) {
+  document.querySelectorAll('#actions button').forEach(b => { b.disabled = !on; });
+  if (on) refreshSpecialButton();
+}
+
+function refreshSpecialButton() {
+  const btn = document.getElementById('btn-spc');
+  const lbl = document.getElementById('cd-label');
+  if (S.pCd > 0) {
+    btn.disabled = true;
+    lbl.textContent = `(${S.pCd} turn${S.pCd > 1 ? 's' : ''})`;
+  } else {
+    btn.disabled = false;
+    lbl.textContent = '';
+  }
+}
+
+function beginPlayerTurn() {
+  isPlayerTurn = true;
+  const banner = document.getElementById('turn-banner');
+  banner.textContent = '⚔️ Your Turn!';
+  banner.style.color = '#06d6a0';
+  setActionsEnabled(true);
+  setLog('Your turn', 'Attack, use your Special, or Defend');
+}
+
+function beginEnemyTurn() {
+  isPlayerTurn = false;
+  const banner = document.getElementById('turn-banner');
+  banner.textContent = `💀 ${S.et.name}'s Turn…`;
+  banner.style.color = '#e84040';
+  setActionsEnabled(false);
+  setTimeout(enemyAct, 1100);
+}
+
+// ─── Combat ───────────────────────────────────────────────────────────────────
+
+function roll(atk, def) {
+  const base = Math.max(1, Math.round(atk * 10 / (10 + def)));
+  const v = Math.max(1, Math.round(base * 0.22));
+  return base + Math.floor(Math.random() * (v * 2 + 1)) - v;
+}
+
+function act(action) {
+  if (!isPlayerTurn) return;
+  setActionsEnabled(false);
+
+  let dmg = 0, msg, sub;
+
+  if (action === 'attack') {
+    dmg = roll(S.pt.atk, S.et.def);
+    msg = `⚔️ ${S.pt.name} attacks!`;
+    sub = `-${dmg} HP`;
+
+  } else if (action === 'special') {
+    const fx = S.pt.special();
+    dmg = fx.dmg;
+    msg = fx.msg;
+    sub = fx.sub;
+    S.pCd = S.pt.cd;
+    if (fx.skipEnemy) S.skipEnemy = true;
+    if (fx.heal)      S.php = Math.min(S.phMax, S.php + fx.heal);
+    if (fx.shield)    S.pShield += fx.shield;
+    if (fx.poison)    S.ePoison = fx.poison;
+    if (fx.iceWall)   S.pIceWall = true;
+    if (fx.dodge)     S.pDodge = true;
+
+  } else { // defend
+    S.pShield += 1;
+    dmg = Math.floor(roll(S.pt.atk, S.et.def) * 0.45);
+    msg = `🛡️ ${S.pt.name} braces for impact!`;
+    sub = 'Reduced attack + shield next hit';
+  }
+
+  S.ehp -= dmg;
+  if (S.pCd > 0 && action !== 'special') S.pCd = Math.max(0, S.pCd - 1);
+  setLog(msg, sub);
+  updateBars();
+  shakeTarget(eMesh, 0.38);
+
+  if (checkEnd()) return;
+
+  if (S.skipEnemy) {
+    S.skipEnemy = false;
+    setLog(`🔮 ${S.et.name} is bound by prophecy!`, 'Enemy turn skipped!');
+    setTimeout(beginPlayerTurn, 1400);
+  } else {
+    setTimeout(beginEnemyTurn, 700);
+  }
+}
+
+function enemyAct() {
+  // Poison tick
+  if (S.ePoison > 0) {
+    const pd = 8;
+    S.ehp -= pd;
+    S.ePoison--;
+    setLog(`☠️ Poison damages ${S.et.name}!`, `-${pd} HP · ${S.ePoison} turns left`);
+    updateBars();
+    shakeTarget(eMesh, 0.2);
+    if (checkEnd()) return;
+  }
+
+  setTimeout(() => {
+    const useSpecial = S.eCd === 0 && (S.ehp < S.ehMax * 0.45 || Math.random() < 0.22);
+    let dmg, msg, sub;
+
+    if (useSpecial) {
+      dmg = Math.round(roll(S.et.atk, S.pt.def) * 1.9);
+      msg = `💀 ${S.et.name}: ${S.et.ability}!`;
+      sub = `-${dmg} HP — super move!`;
+      S.eCd = S.et.cd;
+    } else {
+      dmg = roll(S.et.atk, S.pt.def);
+      msg = `💀 ${S.et.name} attacks!`;
+      sub = `-${dmg} HP`;
+      if (S.eCd > 0) S.eCd--;
+    }
+
+    // Resolve player defenses
+    if (S.pDodge) {
+      S.pDodge = false;
+      msg = `🫥 ${S.pt.name} vanishes — dodge!`; sub = 'No damage!'; dmg = 0;
+    } else if (S.pIceWall) {
+      S.pIceWall = false;
+      msg = `❄️ Ice Wall shatters the attack!`; sub = 'No damage!'; dmg = 0;
+    } else if (S.pShield > 0) {
+      dmg = Math.floor(dmg / 2);
+      sub = `Half damage! -${dmg} HP`; S.pShield--;
+    }
+
+    S.php -= dmg;
+    setLog(msg, sub);
+    updateBars();
+    if (dmg > 0) shakeTarget(pMesh, 0.38);
+
+    if (checkEnd()) return;
+    if (S.pCd > 0) S.pCd--;
+    setTimeout(beginPlayerTurn, 700);
+  }, 700);
+}
+
+function checkEnd() {
+  if (S.ehp <= 0) { endBattle(true);  return true; }
+  if (S.php <= 0) { endBattle(false); return true; }
+  return false;
+}
+
+function endBattle(won) {
+  ['hud','actions','log-box','turn-banner'].forEach(hide);
+  const rs = document.getElementById('screen-result');
+  document.getElementById('result-title').textContent = won ? '🏆 Victory!' : '💀 Defeated!';
+  document.getElementById('result-title').style.color  = won ? '#ffd700' : '#e84040';
+  document.getElementById('result-body').textContent   = won
+    ? `Your ${S.pt.name} defeated the ${S.et.name}!`
+    : `Your ${S.pt.name} was defeated by the ${S.et.name}…`;
+  rs.classList.add('active');
+}
+
+function restart() {
+  document.getElementById('screen-result').classList.remove('active');
+  if (pMesh) { scene.remove(pMesh); pMesh = null; }
+  if (eMesh) { scene.remove(eMesh); eMesh = null; }
+  gotoSelect();
+}
+
+// ─── Shake Effect ─────────────────────────────────────────────────────────────
+
+function shakeTarget(obj, intensity) {
+  if (obj) shakes.push({ obj, t: 0, intensity, baseX: obj.position.x });
+}
+
+// ─── Main Animation Loop ──────────────────────────────────────────────────────
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  T += dt;
+
+  // Ambient background dragons
+  ambientDragons.forEach(ad => {
+    const a = T * ad.speed + ad.phase;
+    ad.mesh.position.x = Math.sin(a) * ad.radius;
+    ad.mesh.position.y = 5 + Math.sin(a * 1.3) * 2;
+    ad.mesh.position.z = -10 + Math.cos(a * 0.7) * 4;
+    ad.mesh.rotation.y = Math.atan2(Math.cos(a) * ad.radius, -Math.sin(a * 0.7) * 4);
+    flapWings(ad.mesh, ad.phase);
+  });
+
+  // Battle dragons
+  if (pMesh) {
+    pMesh.position.y = Math.sin(T * 0.85) * 0.14;
+    flapWings(pMesh, 0);
+  }
+  if (eMesh) {
+    eMesh.position.y = Math.sin(T * 0.85 + 1.4) * 0.14;
+    flapWings(eMesh, 1.4);
+  }
+
+  // RainWing color cycling
+  [{ mesh: pMesh, tribe: S?.pt }, { mesh: eMesh, tribe: S?.et }].forEach(({ mesh, tribe }) => {
+    if (!mesh || tribe?.name !== 'RainWing') return;
+    const hue = (T * 0.25) % 1;
+    mesh.traverse(c => {
+      if (c.isMesh && c.material && !c.material.emissive) {
+        c.material.color.setHSL(hue, 0.92, 0.52);
+      }
+    });
+  });
+
+  // Shakes
+  for (let i = shakes.length - 1; i >= 0; i--) {
+    const s = shakes[i];
+    s.t += dt;
+    if (s.t > 0.32) {
+      s.obj.position.x = s.baseX;
+      shakes.splice(i, 1);
+    } else {
+      s.obj.position.x = s.baseX + Math.sin(s.t * 65) * s.intensity * (1 - s.t / 0.32);
+    }
+  }
+
+  renderer.render(scene, camera);
+}
+
+function flapWings(dragon, offset) {
+  const ud = dragon.userData;
+  const f = Math.sin(T * 2.2 + offset) * 0.28;
+  if (ud.lWing) ud.lWing.rotation.z =  0.18 + f;
+  if (ud.rWing) ud.rWing.rotation.z = -0.18 - f;
+}
+
+animate();
+</script>
+</body>
+</html>
