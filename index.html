@@ -1073,7 +1073,7 @@ const EGG_STEPS=[
   { title:'Your Egg', btn:'Tap…',
     text:()=>`Deep in ${C.tribe.homeland}, a ${C.tribe.name} egg rests in a warm nest. It is ${
       C.hybrid?`unusual — one side shimmers ${C.tribe.name} ${C.tribe.color < 0x888888 ? 'dark' : 'bright'} and the other side is ${C.hybrid2.name} ${C.hybrid2.color < 0x888888 ? 'dark' : 'bright'}` :
-      `beautifully ${C.tribe.name}-colored`}. ${C.royalty?'It bears the royal family's crest — a perfect emblem pressed into the shell.':''}`
+      `beautifully ${C.tribe.name}-colored`}. ${C.royalty?`It bears the royal family’s crest — a perfect emblem pressed into the shell.`:''}`
   },
   { title:'Something Stirs', btn:'It moves…', crackNow:true,
     text:()=>`A tiny sound — tap, tap, tap — comes from inside. The egg shivers. A hairline crack races across the surface. Then another. Something inside is fighting to get out.`
@@ -1255,7 +1255,7 @@ function startAcademyLife(){
   const animusEvent=C.animus ? [{
     chapter:'Chapter III — Academy Life', title:'The Accident',
     narrator:'During art class, something unexpected happens.',
-    text:()=>`You are painting a mural when your brush slips. You whisper, "Go back up" — and the brush floats back into your claws by itself. Everyone stops. Silence. Then your ${clawmate.name} clawmate ${clawmate.name==='NightWing'?'reads the shock in your mind and':'} whispers: "Was that… enchantment?"`,
+    text:()=>`You are painting a mural when your brush slips. You whisper, "Go back up" — and the brush floats back into your claws by itself. Everyone stops. Silence. Then your ${clawmate.name} clawmate ${clawmate.name==='NightWing'?'reads the shock in your mind and':''} whispers: "Was that… enchantment?"`,
     choices:[
       { label:'"I — I don\'t know what that was."',
         log:'Hid animus power initially.' },
@@ -1358,7 +1358,7 @@ const ALL_JOBS=[
     tags:['MudWing','SeaWing','quartz'] },
   { name:'Diplomat',      icon:'🕊️', desc:'Broker peace between kingdoms and settle tribal disputes.',
     tags:['diplomacy','Quartz','Used diplomacy','diplomat','scholar'] },
-  { name:'Royal Advisor', icon:'👑', desc:'Counsel the queen and guide your kingdom's future.',
+  { name:'Royal Advisor', icon:'👑', desc:"Counsel the queen and guide your kingdom's future.",
     unlock:'royalty' },
   { name:'Animus Enchanter', icon:'✨', desc:'Create powerful enchanted objects to help your tribe.',
     unlock:'animus' },
