@@ -1069,8 +1069,6 @@ function buildJMA(){
   const wood =new THREE.MeshStandardMaterial({color:0x5c3a1e,roughness:0.95});
 
   // Main hall
-  g.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(14,8,7),stone),
-    {position:{x:0,y:1.6,z:-5,set(){}}}));
   const hall=new THREE.Mesh(new THREE.BoxGeometry(14,8,7),stone);
   hall.position.set(0,1.6,-5); g.add(hall);
 
@@ -2171,6 +2169,8 @@ function startWorldPhase(phase){
 
   WS.active=true; WS.phase=phase; WS.dialogOpen=false; WS.spellOpen=false;
   playerPos.set(0,0,4); playerFacing=0;
+  // JMA: player faces toward the building (-z) so camera is behind at z≈+20
+  if(phase==='jma') playerFacing=Math.PI;
 
   playerDragon=buildDragon(C.tribe,{animus:C.animus,royalty:C.royalty,flamesilk:C.flamesilk,leafspeak:C.leafspeak},1,C.hybridTribes);
   scene.add(playerDragon);
