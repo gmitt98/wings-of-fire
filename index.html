@@ -2177,7 +2177,7 @@ function startWorldPhase(phase){
 
   if(phase==='hatchling'){
     WS.location='Your Nest'; WS.ageYears=0;
-    scene.fog=new THREE.FogExp2(0x080404,.065);
+    scene.fog=new THREE.FogExp2(0x080404,.03);
     buildNestScene(); spawnNpcMeshes(getNestNpcs());
     document.getElementById('hud-hint').textContent=
       '← → Turn  ↑ ↓ Move  SPACE Attack  B Talk';
@@ -2210,8 +2210,17 @@ function startWorldPhase(phase){
   document.getElementById('action-btns').style.display='flex';
   if(C.animus) document.getElementById('a-spell').style.display='inline-block';
 
-  camera.position.set(playerPos.x,playerPos.y+5,playerPos.z+10);
-  camera.lookAt(playerPos.x,playerPos.y+1,playerPos.z);
+  // Start camera already behind the dragon — no fly-through on world load
+  camera.position.set(
+    playerPos.x - Math.sin(playerFacing)*16,
+    playerPos.y+3,
+    playerPos.z - Math.cos(playerFacing)*16
+  );
+  camera.lookAt(
+    playerPos.x+Math.sin(playerFacing)*6,
+    playerPos.y,
+    playerPos.z+Math.cos(playerFacing)*6
+  );
   updateHud();
 
   const nextPhaseHint={
@@ -2293,16 +2302,22 @@ function handleMovement(dt){
     playerDragon.position.x=playerPos.x;
     playerDragon.position.z=playerPos.z;
     playerDragon.position.y=0;
-    playerDragon.rotation.y=playerFacing+Math.PI;
+    playerDragon.rotation.y=playerFacing; // face forward (not +Math.PI which was backwards)
   }
 }
 function updateCameraFollow(){
-  const cx=playerPos.x-Math.sin(playerFacing)*10;
-  const cz=playerPos.z-Math.cos(playerFacing)*10;
-  camera.position.x+=(cx-camera.position.x)*.09;
-  camera.position.y+=(playerPos.y+5-camera.position.y)*.09;
-  camera.position.z+=(cz-camera.position.z)*.09;
-  camera.lookAt(playerPos.x,playerPos.y+1.5,playerPos.z);
+  // Camera: 16 behind, 3 up. lookAt 6 units ahead of player so ground fills more of frame.
+  const cx=playerPos.x-Math.sin(playerFacing)*16;
+  const cz=playerPos.z-Math.cos(playerFacing)*16;
+  camera.position.x+=(cx-camera.position.x)*.1;
+  camera.position.y+=(playerPos.y+3-camera.position.y)*.1;
+  camera.position.z+=(cz-camera.position.z)*.1;
+  // Look 6 units ahead so ground fills bottom of frame rather than sky
+  camera.lookAt(
+    playerPos.x+Math.sin(playerFacing)*6,
+    playerPos.y,
+    playerPos.z+Math.cos(playerFacing)*6
+  );
 }
 function checkNpcProximity(){
   let closest=null,closestDist=3.8;
