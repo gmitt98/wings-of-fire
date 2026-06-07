@@ -359,6 +359,30 @@ p  { font-size:15px; line-height:1.7; margin:0 0 12px; opacity:.88; }
     border-radius:10px;font-size:20px;color:#fff;cursor:pointer;touch-action:none">▼</button>
 </div>
 
+<!-- ══ CLASS SCROLL BUTTON (JMA only) ═══════════════════════════════════ -->
+<button id="class-scroll-btn" onclick="toggleClassScroll()"
+  style="display:none;position:fixed;top:52px;right:16px;z-index:20;
+  background:rgba(0,0,0,.7);border:1px solid rgba(210,190,100,.4);
+  border-radius:8px;color:#ffe8a0;font-size:12px;padding:6px 14px;
+  cursor:pointer;pointer-events:auto">📜 Classes</button>
+
+<!-- ══ CLASS SCROLL OVERLAY ══════════════════════════════════════════════ -->
+<div id="class-scroll-overlay" style="display:none;position:fixed;top:50%;left:50%;
+  transform:translate(-50%,-50%);z-index:50;
+  background:rgba(5,12,28,.97);border:1px solid rgba(210,190,100,.4);
+  border-radius:18px;padding:24px 30px;min-width:270px;
+  box-shadow:0 8px 44px rgba(0,0,0,.85)">
+  <div style="font-size:20px;font-weight:bold;color:#ffe8a0;text-align:center;margin-bottom:14px">
+    📜 Your Class Scroll
+  </div>
+  <div id="class-scroll-list" style="font-size:15px;line-height:2.1"></div>
+  <div style="font-size:12px;opacity:.5;margin-top:10px;text-align:center">
+    Attend 2 classes to unlock graduation
+  </div>
+  <button class="btn btn-silver btn-sm" onclick="toggleClassScroll()"
+    style="margin-top:16px;display:block;width:100%">Close</button>
+</div>
+
 <!-- ══ ACTION BUTTONS ════════════════════════════════════════════════════ -->
 <div id="action-btns" style="display:none;position:fixed;bottom:22px;right:22px;
   z-index:30;flex-direction:column;gap:10px;align-items:flex-end;pointer-events:auto">
@@ -428,7 +452,7 @@ const C = {
   animus:false, hybrid:false, royalty:false, seer:false,
   leafspeak:false, flamesilk:false,
   winglet:'', job:'', jobDesc:'',
-  choices:[], storyLog:[],
+  choices:[], storyLog:[], classesAttended:{},
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1288,7 +1312,7 @@ function beginLife(){
   C.seer=activeCodes.has('seer');
   C.leafspeak=activeCodes.has('leafspeak');
   C.flamesilk=activeCodes.has('flamesilk');
-  C.choices=[]; C.storyLog=[];
+  C.choices=[]; C.storyLog=[]; C.classesAttended={};
 
   if(previewDragon){ scene.remove(previewDragon); previewDragon=null; }
   playerDragon=buildDragon(C.tribe,{animus:C.animus,royalty:C.royalty,flamesilk:C.flamesilk,leafspeak:C.leafspeak},1,C.hybridTribes);
@@ -2065,18 +2089,39 @@ function pressTalk(){
   const text=npc.dialogs[npc.dialogIdx%npc.dialogs.length];
   npc.dialogIdx++;
   showDialog(npc.name,text);
-  // Starflight second visit → winglet selection
+  // Starflight → winglet selection after she's spoken twice (without winglet)
   if(WS.phase==='jma'&&npc.name==='Headmistress Starflight'&&!C.winglet&&npc.dialogIdx>=2){
     setTimeout(()=>{ closeDialog(); startWingletSelectionWorld(); },1000);
   }
+  // Teacher → trigger class session after their last dialog line (if class not yet attended)
+  if(WS.phase==='jma'&&npc.isTeacher&&npc.subject&&!C.classesAttended[npc.subject]){
+    if(npc.dialogIdx===npc.dialogs.length){
+      setTimeout(()=>{ closeDialog(); showClassSession(npc); },600);
+    }
+  }
+  // Sleeping cave → restore HP and hunger
+  if(npc.isSleepCave){
+    WS.hp=WS.maxHp; WS.hunger=Math.min(WS.maxHunger,WS.hunger+50);
+    setTimeout(()=>showHudPrompt('You rest and feel fully restored!',2500),400);
+  }
 }
-function showDialog(name,text){
+function showDialog(name, text, choices){
   WS.dialogOpen=true;
   document.getElementById('npc-dialog').style.display='block';
   document.getElementById('npc-dialog-name').textContent=name;
   document.getElementById('npc-dialog-text').textContent=text;
-  document.getElementById('npc-dialog-choices').innerHTML=
-    '<button class="btn btn-sm btn-blue" onclick="closeDialog()" style="margin-top:8px">Close [B]</button>';
+  const div=document.getElementById('npc-dialog-choices');
+  div.innerHTML='';
+  if(choices&&choices.length){
+    choices.forEach(c=>{
+      const btn=document.createElement('button');
+      btn.className='choice-btn'; btn.textContent=c.label;
+      btn.onclick=()=>{ if(c.effect) c.effect(); closeDialog(); };
+      div.appendChild(btn);
+    });
+  } else {
+    div.innerHTML='<button class="btn btn-sm btn-blue" onclick="closeDialog()" style="margin-top:8px">Close [B]</button>';
+  }
 }
 function closeDialog(){
   WS.dialogOpen=false; document.getElementById('npc-dialog').style.display='none';
@@ -2106,6 +2151,8 @@ function hidePlayUi(){
   document.getElementById('hud').style.display='none';
   document.getElementById('dpad').style.display='none';
   document.getElementById('action-btns').style.display='none';
+  document.getElementById('class-scroll-btn').style.display='none';
+  document.getElementById('class-scroll-overlay').style.display='none';
   closeDialog(); closeSpellBox();
   const gb=document.getElementById('grow-btn'); if(gb) gb.remove();
   const jb=document.getElementById('job-btn');  if(jb) jb.remove();
@@ -2141,9 +2188,10 @@ function startWorldPhase(phase){
   if(phase==='jma'){
     WS.location='Jade Mountain Academy'; WS.ageYears=12;
     scene.fog=new THREE.FogExp2(0x0a1015,.02);
-    buildJMAScene(); spawnNpcMeshes(getJmaNpcs());
+    buildJMASceneRich(); spawnNpcMeshes(getJmaNpcsRich());
     document.getElementById('hud-hint').textContent=
-      '← → Turn  ↑ ↓ Move  B Talk — Find Starflight to join a winglet';
+      '← → Turn  ↑ ↓ Move  B Talk to NPCs  📜 = class scroll';
+    document.getElementById('class-scroll-btn').style.display='block';
   }
   if(phase==='adult'){
     WS.location='Pyrrhia'; WS.ageYears=20;
@@ -2204,7 +2252,7 @@ function startWingletSelectionWorld(){
       C.winglet=w.name; C.storyLog.push('Joined the '+w.name+'.');
       document.getElementById('s-winglet').classList.remove('on');
       startWorldPhase('jma');
-      setTimeout(()=>{ showHudPrompt('You joined the '+w.name+'! Press the Graduate button when ready.',4000); addPhaseButton_jma2(); },800);
+      setTimeout(()=>{ showHudPrompt('You joined the '+w.name+'! Attend 2+ classes, then graduate.',4000); checkJmaGradReady(); },800);
     };
     grid.appendChild(card);
   });
@@ -2292,6 +2340,271 @@ function gameUpdate(dt){
   updatePrey(dt);
   updateHud();
   animateNpcs(dt);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// JADE MOUNTAIN ACADEMY — FULL EXPERIENCE
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── NPC factory helpers ───────────────────────────────────────────────────
+function teacherNpc(tribeName, name, subject, dialogs, x, z, scale){
+  const tribe=TRIBES.find(t=>t.name===tribeName)||TRIBES[0];
+  return {tribe,name,subject,dialogs,x,z,scale,mesh:null,dialogIdx:0,isTeacher:true};
+}
+function studentNpc(tribe, x, z){
+  const name=randomDragonName(tribe);
+  return {tribe,name,subject:null,dialogs:[
+    'Hey! I\'m '+name+' — '+tribe.name+' tribe.',
+    'I love it here. The homework is brutal though.',
+    'I hope we end up in the same winglet!',
+  ],x,z,scale:0.62,mesh:null,dialogIdx:0,isTeacher:false};
+}
+function sleepCaveNpc(x, z){
+  const tribe=TRIBES.find(t=>t.name==='MudWing');
+  return {tribe,name:'Your Sleeping Cave',subject:null,dialogs:[
+    'Your sleeping cave. Soft moss lines the walls. You curl up and close your eyes.',
+    'You dream of flying over Pyrrhia at dawn. When you wake, you feel completely restored.',
+  ],x,z,scale:0,mesh:null,dialogIdx:0,isTeacher:false,isSleepCave:true};
+}
+
+function getJmaNpcsRich(){
+  const t1=TRIBES.filter(t=>t!==C.tribe)[Math.floor(Math.random()*9)];
+  const t2=TRIBES.filter(t=>t!==C.tribe&&t!==t1)[Math.floor(Math.random()*8)];
+  return [
+    teacherNpc('NightWing','Headmistress Starflight',null,[
+      'Welcome to Jade Mountain Academy, '+C.name+'.',
+      'Talk to me again to be sorted into your winglet.',
+      'Remember — here, tribe means less than character.'],0,0,0.92),
+    teacherNpc('SeaWing','Professor Tsunami','Combat',[
+      'I\'m Tsunami. Combat and self-defense — my class.',
+      'Head to the practice pit. I\'ll meet you there.'],10,-8,0.86),
+    teacherNpc('SandWing','Professor Sunny','History',[
+      'History is everything! Learn it or you\'ll repeat it.',
+      'Come find me in the library. I\'ll quiz you on the War of Succession.'],-10,-8,0.80),
+    teacherNpc('RainWing','Queen Glory','Diplomacy',[
+      'Even a queen finds time to teach. Diplomacy saves more lives than claws.',
+      'When you\'re ready to think about peace, come find me here.'],-3,-11,0.88),
+    teacherNpc('MudWing','Professor Clay','Hunting',[
+      'Hey! I\'m Clay. I teach hunting, survival, and I really love food.',
+      'Come by the prey cave whenever you\'re ready.'],7,-13,0.87),
+    studentNpc(t1,4,3),
+    studentNpc(t2,-5,4),
+    sleepCaveNpc(0,-14),
+  ];
+}
+
+// ── Zone builders ─────────────────────────────────────────────────────────
+function buildJMASceneRich(){
+  worldGround(0x141820,60);
+  if(!jmaBuilding){ jmaBuilding=buildJMA(); scene.add(jmaBuilding); }
+
+  // Zone floor patches (different stone colors per area)
+  function zonePatch(color,w,d,x,z){
+    const m=new THREE.Mesh(new THREE.PlaneGeometry(w,d),
+      new THREE.MeshStandardMaterial({color,roughness:.92}));
+    m.rotation.x=-Math.PI/2; m.position.set(x,-1.38,z); addWorldObj(m);
+  }
+  zonePatch(0x0a1a2a,14,12,-10,-8);   // library — deep blue stone
+  zonePatch(0x1a1008,14,12, 10,-8);   // combat  — dark sand
+  zonePatch(0x0a100a, 8,10,  0,-14);  // sleeping — dark moss
+
+  buildLibraryZone(-10,-8);
+  buildCombatZone(10,-8);
+  buildSleepingZone(0,-14);
+  buildPreyCave(7,-13);
+
+  // Scattered trees and rocks for atmosphere
+  [[-14,2],[-14,-3],[14,0],[14,-4],[0,6],[-6,6],[6,6]].forEach(([x,z])=>worldTree(x,z));
+  [[-8,2],[8,3],[2,-6],[-2,-6]].forEach(([x,z])=>worldRock(x,z));
+}
+
+function buildLibraryZone(cx,cz){
+  const woodMat=new THREE.MeshStandardMaterial({color:0x3a2a14,roughness:.9});
+  const scrollMat=new THREE.MeshStandardMaterial({color:0xddcc99,roughness:.8});
+  // Three shelf units
+  for(let i=0;i<3;i++){
+    const shelf=new THREE.Mesh(new THREE.BoxGeometry(.28,3.2,2.8),woodMat);
+    shelf.position.set(cx-3+i*2.5,0.21,cz+1); shelf.castShadow=true; addWorldObj(shelf);
+    // Scrolls on 4 levels
+    for(let lvl=0;lvl<4;lvl++){
+      for(let s=0;s<4;s++){
+        const sc=new THREE.Mesh(new THREE.CylinderGeometry(.07,.07,.44,6),scrollMat);
+        sc.rotation.z=Math.PI/2;
+        sc.position.set(cx-3+i*2.5+(s*.1-.15),lvl*.7-.9,cz+1+(Math.random()*.8-.4));
+        addWorldObj(sc);
+      }
+    }
+  }
+  // Reading table
+  const table=new THREE.Mesh(new THREE.BoxGeometry(3,.14,1.6),woodMat);
+  table.position.set(cx,-.55,cz-3); addWorldObj(table);
+  const leg=new THREE.Mesh(new THREE.CylinderGeometry(.08,.1,.7,6),woodMat);
+  [[-1.2,0,-0.6],[-1.2,0,0.6],[1.2,0,-0.6],[1.2,0,0.6]].forEach(([x,y,z])=>{
+    const l=leg.clone(); l.position.set(cx+x,-.93,cz-3+z); addWorldObj(l);
+  });
+  // Glow lantern
+  const lanternMat=new THREE.MeshStandardMaterial({color:0xffee88,emissive:0xffcc44,emissiveIntensity:.9});
+  const lantern=new THREE.Mesh(new THREE.SphereGeometry(.22,8,8),lanternMat);
+  lantern.position.set(cx,1.6,cz-3); addWorldObj(lantern);
+  const lLight=new THREE.PointLight(0xffee88,.6,8); lLight.position.set(cx,1.6,cz-3);
+  scene.add(lLight); WS.worldObjects.push(lLight);
+}
+
+function buildCombatZone(cx,cz){
+  // Sand pit floor
+  const sand=new THREE.Mesh(new THREE.CylinderGeometry(4.5,4.5,.1,20),
+    new THREE.MeshStandardMaterial({color:0xddbb88,roughness:1}));
+  sand.position.set(cx,-1.35,cz); addWorldObj(sand);
+  // Ring of stones
+  for(let i=0;i<10;i++){
+    const a=(i/10)*Math.PI*2;
+    const st=new THREE.Mesh(new THREE.SphereGeometry(.3+Math.random()*.2,6,6),
+      new THREE.MeshStandardMaterial({color:0x555566,roughness:.95}));
+    st.scale.y=.55; st.position.set(cx+Math.cos(a)*4.8,-1.1,cz+Math.sin(a)*4.8);
+    addWorldObj(st);
+  }
+  // Training dummy
+  const woodMat=new THREE.MeshStandardMaterial({color:0x5c3a1e,roughness:.9});
+  const post=new THREE.Mesh(new THREE.CylinderGeometry(.18,.22,2.2,8),woodMat);
+  post.position.set(cx+2.5,-.3,cz-1.5); addWorldObj(post);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.38,8,8),
+    new THREE.MeshStandardMaterial({color:0x3a2a14,roughness:.9}));
+  head.position.set(cx+2.5,.98,cz-1.5); addWorldObj(head);
+  // Weapon rack
+  const rack=new THREE.Mesh(new THREE.BoxGeometry(.1,1.8,1.2),woodMat);
+  rack.position.set(cx-3.5,.35,cz-1.5); addWorldObj(rack);
+  for(let i=0;i<3;i++){
+    const spear=new THREE.Mesh(new THREE.CylinderGeometry(.04,.04,1.6,6),woodMat);
+    spear.rotation.z=.3; spear.position.set(cx-3.5+i*.12,.5,cz-1+i*.25); addWorldObj(spear);
+  }
+  // Torch
+  const torchMat=new THREE.MeshStandardMaterial({color:0xff6600,emissive:0xff4400,emissiveIntensity:1.2});
+  const torch=new THREE.Mesh(new THREE.SphereGeometry(.18,8,8),torchMat);
+  torch.position.set(cx-4.5,1.2,cz); addWorldObj(torch);
+  const tLight=new THREE.PointLight(0xff6600,.7,7); tLight.position.set(cx-4.5,1.2,cz);
+  scene.add(tLight); WS.worldObjects.push(tLight);
+}
+
+function buildSleepingZone(cx,cz){
+  const stone=new THREE.MeshStandardMaterial({color:0x222230,roughness:.95});
+  // Entrance arch
+  const arch=new THREE.Mesh(new THREE.TorusGeometry(2,.38,8,10,Math.PI),stone);
+  arch.rotation.x=-Math.PI/2; arch.position.set(cx,.52,cz+3); addWorldObj(arch);
+  // Dark inner floor
+  const dark=new THREE.Mesh(new THREE.PlaneGeometry(8,7),
+    new THREE.MeshStandardMaterial({color:0x08080f,roughness:1}));
+  dark.rotation.x=-Math.PI/2; dark.position.set(cx,-1.38,cz); addWorldObj(dark);
+  // Sleeping mats (3 beds)
+  const mossMat=new THREE.MeshStandardMaterial({color:0x2a4420,roughness:1});
+  [[-2.2,0],[0,0],[2.2,0]].forEach(([dx,dz])=>{
+    const mat=new THREE.Mesh(new THREE.BoxGeometry(1.8,.12,1.3),mossMat);
+    mat.position.set(cx+dx,-1.34,cz+dz-1.5); addWorldObj(mat);
+    const pillow=new THREE.Mesh(new THREE.SphereGeometry(.28,8,6),
+      new THREE.MeshStandardMaterial({color:0x3a5a30,roughness:1}));
+    pillow.scale.y=.5; pillow.position.set(cx+dx,-1.22,cz+dz-.3); addWorldObj(pillow);
+  });
+  // Dim glow crystal inside
+  const glowMat=new THREE.MeshStandardMaterial({color:0x4466aa,emissive:0x2244aa,emissiveIntensity:.5});
+  const crystal=new THREE.Mesh(new THREE.ConeGeometry(.1,.3,5),glowMat);
+  crystal.position.set(cx,-.8,cz-2.5); addWorldObj(crystal);
+}
+
+function buildPreyCave(cx,cz){
+  // Low stone walls around a feeding area
+  const st=new THREE.MeshStandardMaterial({color:0x445544,roughness:.95});
+  for(let i=0;i<6;i++){
+    const a=(i/6)*Math.PI*1.5-.3;
+    const rock=new THREE.Mesh(new THREE.SphereGeometry(.5+Math.random()*.3,7,6),st);
+    rock.scale.y=.6; rock.position.set(cx+Math.cos(a)*3,-1.05,cz+Math.sin(a)*2.5); addWorldObj(rock);
+  }
+  // Prey animal silhouettes (sleeping - small spheres)
+  const preyMat=new THREE.MeshStandardMaterial({color:0x887755,roughness:.9});
+  [[-1,0],[.8,.4],[0,-.5]].forEach(([dx,dz])=>{
+    const p=new THREE.Mesh(new THREE.SphereGeometry(.38,8,8),preyMat);
+    p.scale.set(1.4,.7,1); p.position.set(cx+dx,-1.1,cz+dz); addWorldObj(p);
+  });
+}
+
+// ── Class session system ──────────────────────────────────────────────────
+const CLASS_SESSIONS={
+  Combat:{
+    text:"Professor Tsunami paces the sand pit. \"Outnumbered three to one and no help coming. What do you do?\"",
+    choices:[
+      {label:'Strike first — take the biggest one by surprise.',log:'Aggressive fighter.'},
+      {label:'Find a defensible position and wear them down.',  log:'Patient defender.'},
+      {label:'Make noise and stall until backup arrives.',     log:'Tactically smart.'},
+    ]
+  },
+  History:{
+    text:"Sunny bounces eagerly on her talons. \"What do YOU think caused the War of SandWing Succession?\"",
+    choices:[
+      {label:'"Queen Oasis died with no clear heir."',         log:'Understands succession.'},
+      {label:'"All three sisters were equally ambitious."',    log:'Sees all sides.'},
+      {label:'"Outside kingdoms kept the war going."',        log:'Spots manipulation.'},
+    ]
+  },
+  Diplomacy:{
+    text:"Queen Glory surveys you coolly. \"Two students from rival tribes about to fight. Ten seconds. Go.\"",
+    choices:[
+      {label:'Step between them immediately.',                 log:'Bold peacemaker.'},
+      {label:'Sprint for the nearest teacher.',               log:'Respects authority.'},
+      {label:'Call out firmly to both by name.',              log:'Natural leader.'},
+    ]
+  },
+  Hunting:{
+    text:"Clay grins. \"Best survival lesson I know. What matters most when you\'re feeding the whole group?\"",
+    choices:[
+      {label:'"Speed — catch something before it runs."',    log:'Fast hunter.'},
+      {label:'"Track carefully and choose wisely."',          log:'Skilled tracker.'},
+      {label:'"Make sure everyone eats before you do."',     log:'Generous provider.'},
+    ]
+  },
+};
+
+function showClassSession(npc){
+  const s=CLASS_SESSIONS[npc.subject]; if(!s) return;
+  WS.dialogOpen=true;
+  showDialog(npc.name, s.text, s.choices.map(c=>({
+    label: c.label,
+    effect:()=>{ C.storyLog.push(c.log); attendClass(npc.subject); }
+  })));
+}
+
+function attendClass(subject){
+  if(C.classesAttended[subject]) return;
+  C.classesAttended[subject]=true;
+  updateClassScroll();
+  const n=Object.keys(C.classesAttended).length;
+  showHudPrompt('✅ '+subject+' class complete! ('+n+' of 4 attended)',3000);
+  checkJmaGradReady();
+}
+
+function updateClassScroll(){
+  const el=document.getElementById('class-scroll-list'); if(!el) return;
+  const all=['Combat','History','Diplomacy','Hunting'];
+  el.innerHTML=all.map(s=>
+    `<div style="display:flex;gap:8px;align-items:center">
+      <span>${C.classesAttended[s]?'✅':'⬜'}</span>
+      <span style="opacity:${C.classesAttended[s]?1:.55}">${s}</span>
+      ${C.classesAttended[s]?'<span style="font-size:11px;opacity:.5;margin-left:auto">Done</span>':''}
+    </div>`
+  ).join('');
+}
+
+function checkJmaGradReady(){
+  if(!C.winglet) return;
+  const n=Object.keys(C.classesAttended).length;
+  if(n>=2&&WS.phase==='jma'&&!document.getElementById('grow-btn')){
+    addPhaseButton_jma2();
+  }
+}
+
+function toggleClassScroll(){
+  const overlay=document.getElementById('class-scroll-overlay');
+  const open=overlay.style.display!=='none';
+  overlay.style.display=open?'none':'block';
+  WS.dialogOpen=!open;
+  if(!open) updateClassScroll();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
