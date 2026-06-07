@@ -1904,12 +1904,17 @@ function getAdultNpcs(){
 function spawnNpcMeshes(defs){
   WS.worldNpcs=defs;
   defs.forEach(npc=>{
-    const td=typeof npc.tribe==='object'&&npc.tribe.color!==undefined
-      ?npc.tribe:(TRIBES.find(t=>t.name===npc.tribe)||C.tribe);
-    npc.mesh=buildDragon(td,{},npc.scale);
-    npc.mesh.position.set(npc.x,0,npc.z);
-    npc.mesh.rotation.y=Math.atan2(playerPos.x-npc.x,playerPos.z-npc.z);
-    scene.add(npc.mesh); WS.worldObjects.push(npc.mesh);
+    // Skip scale-0 NPCs (invisible markers like sleeping cave) — scale 0
+    // causes a degenerate matrix which can crash WebGL on mobile.
+    if(!npc.scale||npc.scale<=0){ npc.mesh=null; return; }
+    try {
+      const td=typeof npc.tribe==='object'&&npc.tribe.color!==undefined
+        ?npc.tribe:(TRIBES.find(t=>t.name===npc.tribe)||C.tribe);
+      npc.mesh=buildDragon(td,{},npc.scale);
+      npc.mesh.position.set(npc.x,0,npc.z);
+      npc.mesh.rotation.y=Math.atan2(playerPos.x-npc.x,playerPos.z-npc.z);
+      scene.add(npc.mesh); WS.worldObjects.push(npc.mesh);
+    } catch(e){ npc.mesh=null; }
   });
 }
 
@@ -2359,11 +2364,12 @@ function studentNpc(tribe, x, z){
   ],x,z,scale:0.62,mesh:null,dialogIdx:0,isTeacher:false};
 }
 function sleepCaveNpc(x, z){
-  const tribe=TRIBES.find(t=>t.name==='MudWing');
+  // scale:-1 signals "no mesh" to spawnNpcMeshes (avoids degenerate matrix crash on mobile)
+  const tribe=TRIBES.find(t=>t.name==='MudWing')||TRIBES[3];
   return {tribe,name:'Your Sleeping Cave',subject:null,dialogs:[
     'Your sleeping cave. Soft moss lines the walls. You curl up and close your eyes.',
     'You dream of flying over Pyrrhia at dawn. When you wake, you feel completely restored.',
-  ],x,z,scale:0,mesh:null,dialogIdx:0,isTeacher:false,isSleepCave:true};
+  ],x,z,scale:-1,mesh:null,dialogIdx:0,isTeacher:false,isSleepCave:true};
 }
 
 function getJmaNpcsRich(){
@@ -2393,19 +2399,18 @@ function getJmaNpcsRich(){
 }
 
 // ── Zone builders ─────────────────────────────────────────────────────────
+function jmaZonePatch(color,w,d,x,z){
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(w,d),
+    new THREE.MeshStandardMaterial({color,roughness:.92}));
+  m.rotation.x=-Math.PI/2; m.position.set(x,-1.38,z); addWorldObj(m);
+}
 function buildJMASceneRich(){
   worldGround(0x141820,60);
   if(!jmaBuilding){ jmaBuilding=buildJMA(); scene.add(jmaBuilding); }
 
-  // Zone floor patches (different stone colors per area)
-  function zonePatch(color,w,d,x,z){
-    const m=new THREE.Mesh(new THREE.PlaneGeometry(w,d),
-      new THREE.MeshStandardMaterial({color,roughness:.92}));
-    m.rotation.x=-Math.PI/2; m.position.set(x,-1.38,z); addWorldObj(m);
-  }
-  zonePatch(0x0a1a2a,14,12,-10,-8);   // library — deep blue stone
-  zonePatch(0x1a1008,14,12, 10,-8);   // combat  — dark sand
-  zonePatch(0x0a100a, 8,10,  0,-14);  // sleeping — dark moss
+  jmaZonePatch(0x0a1a2a,14,12,-10,-8);   // library — deep blue stone
+  jmaZonePatch(0x1a1008,14,12, 10,-8);   // combat  — dark sand
+  jmaZonePatch(0x0a100a, 8,10,  0,-14);  // sleeping — dark moss
 
   buildLibraryZone(-10,-8);
   buildCombatZone(10,-8);
