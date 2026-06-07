@@ -169,9 +169,13 @@ p  { font-size:15px; line-height:1.7; margin:0 0 12px; opacity:.88; }
 
 <!-- ══ CHARACTER CREATION ════════════════════════════════════════════════ -->
 <div id="s-create" class="scr">
-  <div style="text-align:center;margin-bottom:18px">
-    <h2 style="margin:0">Create Your Dragon</h2>
-    <p style="margin:4px 0 0;opacity:.6;font-size:14px">Choose your tribe, name, and destiny</p>
+  <div style="text-align:center;margin-bottom:14px">
+    <h2 style="margin:0 0 6px">Create Your Dragon</h2>
+    <p style="margin:0 0 12px;opacity:.6;font-size:14px">Choose your tribe, name, and destiny</p>
+    <button class="btn btn-gold" id="btn-begin" disabled onclick="beginLife()"
+      style="font-size:17px;padding:12px 34px">
+      Begin Your Life →
+    </button>
   </div>
 
   <!-- Step 1: Name -->
@@ -212,11 +216,6 @@ p  { font-size:15px; line-height:1.7; margin:0 0 12px; opacity:.88; }
     </div>
   </div>
 
-  <div class="btn-row" style="margin-top:16px">
-    <button class="btn btn-gold" id="btn-begin" disabled onclick="beginLife()">
-      Begin Your Life →
-    </button>
-  </div>
 </div>
 
 <!-- ══ EGG ════════════════════════════════════════════════════════════════ -->
